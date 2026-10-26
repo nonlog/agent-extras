@@ -1,0 +1,46 @@
+{
+  "name": "pi-polish",
+  "version": "0.1.2-patched.1",
+  "license": "MIT",
+  "author": "Thomas van Dongen (upstream); patched fork maintained by nonlog",
+  "type": "module",
+  "homepage": "https://github.com/nonlog/pi-extensions#readme",
+  "bugs": {
+    "url": "https://github.com/nonlog/pi-extensions/issues"
+  },
+  "files": [
+    "extensions",
+    "README.md",
+    "LICENSE"
+  ],
+  "description": "Claude Code-style output for pi: tool calls fold into short summaries and edits show as colored diffs",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "tui",
+    "diff",
+    "syntax-highlighting"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nonlog/pi-extensions.git"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions/tools.ts",
+      "./extensions/chrome.ts"
+    ],
+    "image": "https://raw.githubusercontent.com/Pringled/pi-extensions/main/assets/images/pi-polish-dark.gif"
+  },
+  "dependencies": {
+    "diff": "9.0.0",
+    "shiki": "4.5.0",
+    "@shikijs/langs": "4.5.0",
+    "@shikijs/themes": "4.5.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}
