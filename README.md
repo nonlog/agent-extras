@@ -1,62 +1,38 @@
-# pi-polish (patched fork)
+# pi-extensions
 
-Makes [Pi](https://pi.dev)'s output look like Claude Code's: tool calls fold into short summary lines, and edits show as colored diffs.
-
-This is a **patched fork** of [`pi-polish`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) by Thomas van Dongen. Upstream is MIT licensed; this fork keeps that license and adds the patches described under [Local patches](#local-patches).
+Pi extensions kept in one place so they can be installed from a single source.
 
 ```bash
 pi install git:github.com/nonlog/pi-extensions
 ```
 
-## Features
+The root `package.json` declares every extension under `pi.extensions`, so one install brings all of them.
 
-- Shell commands, file reads and searches in a row fold into one line that updates while they run (`Running 2 shell commands… · 5s`) and then sums them up (`Ran 3 shell commands, read 2 files`). `ctrl+o` shows the full output.
-- Edits and new files show as diffs with syntax highlighting and the changed words marked, in colors that follow your Pi theme, dark or light.
-- A dot on each tool row shows its status: orange while running, green when done, red if it failed.
-- An orange status line shows what Pi is doing, how long it has been at it and how many tokens it has written.
-- `❯` marks your messages and `●` marks Pi's replies.
-- A short instruction to the model to change files with Pi's edit and write tools instead of shell commands like `sed -i`, so you see the changes as diffs.
+## Packages
 
-## Local patches
+| Package | What it does | Origin |
+|---|---|---|
+| [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
+| [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
 
-Four changes on top of upstream `0.1.2`, each fixing a conflict with [`pi-open-tui`](https://github.com/OldSuns/pi-open-tui) or [`@robhowley/pi-spinner-verbs`](https://www.npmjs.com/package/@robhowley/pi-spinner-verbs).
+### pi-polish patches
 
-### 1. `❯` marker inside a framed editor
+Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](https://github.com/OldSuns/pi-open-tui) and [`@robhowley/pi-spinner-verbs`](https://www.npmjs.com/package/@robhowley/pi-spinner-verbs). Details in [packages/pi-polish/README.md](./packages/pi-polish/README.md#local-patches).
 
-`pi-open-tui` replaces the editor with `OpenTuiEditor extends CustomEditor`, which wraps every content line in a `│ … │` frame. Upstream `markFirstLine` required the line to start with two spaces, which a framed line never does, so the `❯` marker silently never appeared.
+1. `❯` marker renders inside pi-open-tui's framed editor (the frame's `│` rail broke the original match).
+2. The status line renders the verb published by pi-spinner-verbs instead of overwriting it every second.
+3. The thinking block is left intact, so pi-open-tui's thinking peek has a label row to rewrite.
+4. `outputPad` stays at 2, which patch 1 requires.
 
-`LEADING_ESCAPES` now also accepts an optional leading rail (and its ANSI wrapping) before the two padding spaces.
+### pi-bar-cursor is unmodified
 
-### 2. Spinner verbs instead of a competing status line
+It is copied here as-is. Note it overlaps with `pi-open-tui`, which also owns the caret:
 
-`pi-spinner-verbs` writes its verb with `ctx.ui.setWorkingMessage(...)` on a 3 s timer; upstream pi-polish wrote its phase + elapsed + token line to the same slot on a 1 s timer, so the verb was overwritten within a second and effectively invisible.
+- pi-open-tui writes DECSCUSR `\x1b[6 q` (steady bar) and manages the hardware cursor itself
+- pi-bar-cursor writes `\x1b[5 q` (blinking bar) plus an `OSC 12` accent color
 
-pi-polish now registers itself as the working-line owner (`globalThis[Symbol.for("pi-spinner-verbs.verb.consumer")]`) and renders the verb pi-spinner-verbs publishes (`Symbol.for("pi-spinner-verbs.verb")`) inside its own line:
-
-```
-I know kung fu… (5s · ↓ 1.2k tokens)
-```
-
-When pi-spinner-verbs is absent, or publishes no verb yet, the phase text is used as before.
-
-> pi-spinner-verbs needs a matching 3-line change (publish the verb, skip its own write when a consumer registered). That change lives in the installed package, not here.
-
-### 3. Thinking block left intact
-
-Upstream dropped the `thinking` content parts from the message before rendering, to avoid a `Thinking…` row plus spacers. `pi-open-tui`'s thinking peek works by rewriting that row's label, so removing it left the peek with nothing to display.
-
-`updateContent` now passes the message through unchanged.
-
-### 4. Editor padding kept at 2
-
-`outputPad` is raised to 2 so reply text lines up behind the `●` marker. This is required by patch 1: the marker replaces exactly two padding columns, and a framed line with `paddingX = 0` has none.
-
-Note this interacts with `pi-open-tui`'s hidden-thinking label width budget: Pi renders that label as `Text(label, outputPad, 0)`, and `Text` pads **both** sides, so the usable width is `width - 2*outputPad`. With `outputPad = 2` the budget must reserve 4 columns, not 2. See the corresponding change in pi-open-tui.
-
-## Compatibility
-
-pi-polish only changes how Pi's built-in tools are drawn; the tools themselves run exactly as before. The chat styling (the markers and the status line) reaches into Pi's internal UI, so a new Pi release can break that part of the look until pi-polish is updated. Your sessions are never affected. Tested with Pi 1.4.
+Both write the same cursor sequence, so the shape and color can flip depending on which wrote last. If you run pi-open-tui, either drop pi-bar-cursor or expect the two to fight over the caret.
 
 ## License
 
-MIT — original work Copyright (c) Thomas van Dongen. See [LICENSE](./LICENSE).
+MIT. Each package keeps its own `LICENSE` file with its original copyright holder; the root [LICENSE](./LICENSE) covers the repository as a whole.

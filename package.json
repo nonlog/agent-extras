@@ -1,43 +1,37 @@
 {
-  "name": "pi-polish",
-  "version": "0.1.2-patched.1",
+  "name": "pi-extensions",
+  "version": "0.1.0",
+  "private": true,
   "license": "MIT",
-  "author": "Thomas van Dongen (upstream); patched fork maintained by nonlog",
+  "author": "nonlog",
   "type": "module",
+  "description": "Pi extensions: a patched pi-polish and pi-bar-cursor, kept together so they can be installed from one source",
   "homepage": "https://github.com/nonlog/pi-extensions#readme",
-  "bugs": {
-    "url": "https://github.com/nonlog/pi-extensions/issues"
-  },
-  "files": [
-    "extensions",
-    "README.md",
-    "LICENSE"
-  ],
-  "description": "Claude Code-style output for pi: tool calls fold into short summaries and edits show as colored diffs",
-  "keywords": [
-    "pi-package",
-    "pi",
-    "pi-coding-agent",
-    "tui",
-    "diff",
-    "syntax-highlighting"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nonlog/pi-extensions.git"
   },
+  "bugs": {
+    "url": "https://github.com/nonlog/pi-extensions/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "tui"
+  ],
   "pi": {
     "extensions": [
-      "./extensions/tools.ts",
-      "./extensions/chrome.ts"
-    ],
-    "image": "https://raw.githubusercontent.com/Pringled/pi-extensions/main/assets/images/pi-polish-dark.gif"
+      "./packages/pi-polish/extensions/tools.ts",
+      "./packages/pi-polish/extensions/chrome.ts",
+      "./packages/pi-bar-cursor/extensions"
+    ]
   },
   "dependencies": {
-    "diff": "9.0.0",
-    "shiki": "4.5.0",
     "@shikijs/langs": "4.5.0",
-    "@shikijs/themes": "4.5.0"
+    "@shikijs/themes": "4.5.0",
+    "diff": "9.0.0",
+    "shiki": "4.5.0"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
