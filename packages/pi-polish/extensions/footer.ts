@@ -12,7 +12,7 @@ const fg = (c: Rgb) => `\x1b[38;2;${c[0]};${c[1]};${c[2]}m`;
 const FOLDER = "\uf07b"; // nf-fa-folder
 const COMMENT = "\uf075"; // nf-fa-comment
 const DISK = "\uf1c0"; // nf-fa-database
-const THINKING = "\u25c9"; // ◉
+const THINKING = "\uf09d1"; // nf-md-brain — marks the thinking level, which the text and colour then grade
 const SOLID = "\u2588"; // █
 const SHADE = ["\u2593", "\u2592", "\u2591"]; // ▓ ▒ ░ — the ramp behind the fill
 
