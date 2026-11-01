@@ -24,6 +24,7 @@
     "extensions": [
       "./packages/pi-polish/extensions/tools.ts",
       "./packages/pi-polish/extensions/chrome.ts",
+      "./packages/pi-polish/extensions/footer.ts",
       "./packages/pi-bar-cursor/extensions"
     ]
   },

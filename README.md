@@ -12,7 +12,7 @@ The root `package.json` declares every extension under `pi.extensions`, so one i
 
 | Package | What it does | Origin |
 |---|---|---|
-| [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
+| [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line, custom two-line footer with model brand icons | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
 | [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
 
 ### pi-polish patches
@@ -23,6 +23,29 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 2. The status line renders the verb published by pi-spinner-verbs instead of overwriting it every second.
 3. The thinking block is left intact, so pi-open-tui's thinking peek has a label row to rewrite.
 4. `outputPad` stays at 2, which patch 1 requires.
+
+### Custom footer
+
+`extensions/footer.ts` replaces `FooterComponent.render` with a two-line layout:
+
+```
+ D:\Workspace\General (main) • session title
+ DeepSeek V4.1 Flash ◉ max                    ████░░░░░░░░░░░░ 95k/400k (24%)
+```
+
+- Line 1 is the working directory, the git branch when the cwd is a repo, and the session name.
+- Line 2 is the model brand icon, a generated display name (`deepseek-v4.1-flash` → `DeepSeek V4.1 Flash`), the thinking level, and a context bar that turns yellow at 60% and red at 85%.
+- A third line still appears when extensions call `ctx.ui.setStatus()`, so pi-lens, ponytail and friends keep their row.
+
+Model brand logos are drawn from **Herdr Agent Icons Max** (`U+E1A0`–`U+E1BB`). That font carries those codepoints and nothing else, so the terminal must list it as a fallback or every icon renders as tofu:
+
+```toml
+[terminal]
+family = "CaskaydiaCove Nerd Font"
+fallback = ["Herdr Agent Icons Max", "Symbols Nerd Font Mono"]
+```
+
+Brands with an icon: deepseek, claude, gemini, gpt, grok, glm, muse. Anything else falls back to a generic chip glyph from CaskaydiaCove NF.
 
 ### pi-bar-cursor is unmodified
 
