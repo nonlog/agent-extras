@@ -6,47 +6,53 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 const RESET = "\x1b[0m";
 type Rgb = [number, number, number];
-const fg = (c: Rgb) => `\x1b[38;2;${c[0]};${c[1]};${c[2]}m`;
 
-// Decoration comes from CaskaydiaCove NF, the terminal's primary face.
-const FOLDER = "\uf07b"; // nf-fa-folder
-const BRANCH_ICON = "\uf418"; // nf-oct-git_branch
-const COMMENT = "\uf0e5"; // nf-fa-comment_o (refined outline speech bubble)
-const DISK = "\uf1c0"; // nf-fa-database
-const THINKING = "\uec10"; // nf-cod-sparkle (AI reasoning spark)
-const SOLID = "\u2588"; // █
-const SHADE = ["\u2593", "\u2592", "\u2591"]; // ▓ ▒ ░ — the ramp behind the fill
+// \x1b[22;1; cancels outer dim (22) and turns on bold (1) for vibrant statusline colors
+const fg = (c: Rgb) => `\x1b[22;1;38;2;${c[0]};${c[1]};${c[2]}m`;
 
-// Palette: unified warm gold for folder and cwd path
-const FOLDER_COLOR: Rgb = [217, 175, 87];
-const CWD: Rgb = [217, 175, 87];
-const BRANCH: Rgb = [150, 175, 120];
-const TITLE: Rgb = [135, 175, 215]; // #87afd7
-const MUTED: Rgb = [130, 130, 130];
-const FAINT: Rgb = [85, 85, 85];
+// Unicode Icons (Nerd Font & standard Block Elements)
+const FOLDER = "\uf07b"; // U+F07B Nerd Font (FontAwesome)
+const BRANCH_ICON = "\ue725"; // U+E725 Nerd Font (devicons)
+const COMMENT = "\u{F0B79}"; // U+F0B79 Nerd Font (md-chat)
+const DISK = "\uf1c0"; // U+F1C0 Nerd Font (FontAwesome)
+const THINKING = "\uec10"; // U+EC10 Nerd Font (cod-sparkle)
+const SOLID = "\u2588"; // U+2588 solid fill block
+const SHADE = "\u2592"; // U+2592 medium shade block
 
-// Brand logos live in Herdr Agent Icons Max, reachable only through the terminal's fallback
-// chain (CaskaydiaCove NF carries no U+E1A0..U+E1BB). See herdr config-gpui.local.toml [terminal].
+// Functional Palette (ANSI 256 / 24-bit Truecolor)
+const CWD_COLOR: Rgb = [215, 175, 0]; // #d7af00 (ANSI 178) warm gold
+const TITLE_COLOR: Rgb = [135, 175, 215]; // #87afd7 (ANSI 110) soft steel blue
+const BRANCH_COLOR: Rgb = [175, 255, 95]; // #afff5f (ANSI 155) vibrant light green
+const SEP_COLOR: Rgb = [95, 95, 95]; // #5f5f5f (ANSI 59) low-contrast neutral gray
+
+// Brand logos (Herdr Agent Icons Max PUA U+E1A0..U+E1BB) & Official Brand Colors
 type Brand = { prefix: string; icon: string; label: string; rgb: Rgb };
 const BRANDS: Brand[] = [
-	{ prefix: "deepseek", icon: "\ue1ad", label: "DeepSeek", rgb: [79, 172, 254] },
-	{ prefix: "claude", icon: "\ue1a0", label: "Claude", rgb: [217, 119, 87] },
-	{ prefix: "gemini", icon: "\ue1ae", label: "Gemini", rgb: [138, 180, 255] },
-	{ prefix: "gpt", icon: "\ue1af", label: "GPT", rgb: [116, 192, 163] },
-	{ prefix: "grok", icon: "\ue1b1", label: "Grok", rgb: [214, 214, 214] },
-	{ prefix: "glm", icon: "\ue1b7", label: "GLM", rgb: [150, 200, 120] },
-	{ prefix: "muse", icon: "\ue1b9", label: "Muse", rgb: [226, 186, 96] },
+	{ prefix: "deepseek", icon: "\ue1ad", label: "DeepSeek", rgb: [77, 107, 254] }, // #4d6bfe
+	{ prefix: "claude", icon: "\ue1a0", label: "Claude", rgb: [217, 119, 87] }, // #d97757
+	{ prefix: "codex", icon: "\ue1a1", label: "Codex", rgb: [16, 163, 127] }, // #10a37f
+	{ prefix: "gpt", icon: "\ue1af", label: "GPT", rgb: [16, 163, 127] }, // #10a37f
+	{ prefix: "openai", icon: "\ue1af", label: "OpenAI", rgb: [16, 163, 127] }, // #10a37f
+	{ prefix: "gemini", icon: "\ue1ae", label: "Gemini", rgb: [66, 133, 244] }, // #4285f4
+	{ prefix: "glm", icon: "\ue1b7", label: "GLM", rgb: [59, 110, 245] }, // #3b6ef5
+	{ prefix: "muse", icon: "\ue1b9", label: "Muse", rgb: [0, 130, 251] }, // #0082fb
+	{ prefix: "kimi", icon: "\ue1a6", label: "Kimi", rgb: [23, 131, 255] }, // #1783ff
+	{ prefix: "qwen", icon: "\ue1b0", label: "Qwen", rgb: [97, 92, 237] }, // #615ced
+	{ prefix: "grok", icon: "\ue1b1", label: "Grok", rgb: [201, 201, 209] }, // #c9c9d1
 ];
-const FALLBACK: Brand = { prefix: "", icon: "\uf2db", label: "", rgb: [150, 150, 150] }; // nf-fa-microchip
+const FALLBACK_BRAND: Brand = { prefix: "", icon: "\u{F09D1}", label: "", rgb: [156, 163, 175] }; // U+F09D1 md-brain #9ca3af
 
+// Reasoning Effort Colors (Tailwind-based Truecolor)
 const LEVEL_COLORS: Record<string, Rgb> = {
-	off: [115, 115, 115],
-	minimal: [125, 160, 195],
-	low: [120, 200, 140],
-	medium: [110, 190, 225],
-	high: [230, 190, 90],
-	xhigh: [235, 150, 90],
-	max: [200, 120, 220],
+	none: [107, 114, 128], // #6b7280
+	off: [107, 114, 128], // #6b7280
+	dynamic: [34, 211, 238], // #22d3ee
+	minimal: [56, 189, 248], // #38bdf8
+	low: [74, 222, 128], // #4ade80
+	medium: [251, 191, 36], // #fbbf24
+	high: [251, 146, 60], // #fb923c
+	xhigh: [248, 113, 113], // #f87171
+	max: [192, 132, 252], // #c084fc
 };
 
 const patched = Symbol.for("pi-polish.footer");
@@ -86,15 +92,42 @@ function displayName(id: string): string {
 	return [brand?.label, ...words].filter(Boolean).join(" ");
 }
 
-/** Solid fill with a three-cell shade ramp inside brackets, so the leading edge fades instead of stopping hard. */
-function renderBar(cells: number, percent: number, color: Rgb): string {
-	const filled = Math.floor((Math.max(0, Math.min(100, percent)) / 100) * cells);
-	let out = filled > 0 ? `${fg(color)}${SOLID.repeat(filled)}${RESET}` : "";
-	for (let i = filled; i < cells; i++) {
-		const step = i - filled;
-		out += `${fg(step === 0 ? color : step === 1 ? MUTED : FAINT)}${SHADE[Math.min(step, SHADE.length - 1)]}${RESET}`;
+/**
+ * LERP smooth color interpolation for context progress bar:
+ *  0% ~ 40%:  pure healthy green rgb(74, 222, 128) (#4ade80)
+ * 40% ~ 70%:  smooth transition to amber gold rgb(251, 191, 36) (#fbbf24)
+ * 70% ~ 100%: smooth transition to danger red rgb(248, 113, 113) (#f87171)
+ */
+function lerpPressureColor(percent: number): Rgb {
+	const p = Math.max(0, Math.min(100, percent));
+	const cGreen: Rgb = [74, 222, 128];
+	const cYellow: Rgb = [251, 191, 36];
+	const cRed: Rgb = [248, 113, 113];
+
+	if (p <= 40) return cGreen;
+	if (p <= 70) {
+		const t = (p - 40) / 30;
+		return [
+			Math.round(cGreen[0] + (cYellow[0] - cGreen[0]) * t),
+			Math.round(cGreen[1] + (cYellow[1] - cGreen[1]) * t),
+			Math.round(cGreen[2] + (cYellow[2] - cGreen[2]) * t),
+		];
 	}
-	return `${fg(MUTED)}[${RESET}${out}${fg(MUTED)}]${RESET}`;
+	const t = (p - 70) / 30;
+	return [
+		Math.round(cYellow[0] + (cRed[0] - cYellow[0]) * t),
+		Math.round(cYellow[1] + (cRed[1] - cYellow[1]) * t),
+		Math.round(cYellow[2] + (cRed[2] - cYellow[2]) * t),
+	];
+}
+
+/** 16-cell bar with solid fill █ and medium shade ▒ inside brackets [████████▒▒▒▒▒▒▒▒] */
+function renderBar(cells: number, percent: number, color: Rgb): string {
+	const filled = Math.round((Math.max(0, Math.min(100, percent)) / 100) * cells);
+	const empty = cells - filled;
+	const barFilled = filled > 0 ? `${fg(color)}${SOLID.repeat(filled)}${RESET}` : "";
+	const barEmpty = empty > 0 ? `${fg(SEP_COLOR)}${SHADE.repeat(empty)}${RESET}` : "";
+	return `${fg(SEP_COLOR)}[${RESET}${barFilled}${barEmpty}${fg(SEP_COLOR)}]${RESET}`;
 }
 
 function build(footer: any, width: number): string[] {
@@ -102,58 +135,49 @@ function build(footer: any, width: number): string[] {
 	const manager = footer.session.sessionManager;
 	const model = state.model;
 
-	const home = process.env.HOME || process.env.USERPROFILE || "";
-	const rawCwd = String(manager.getCwd());
-	const cwd = home && rawCwd.toLowerCase().startsWith(home.toLowerCase()) ? `~${rawCwd.slice(home.length)}` : rawCwd;
+	const cwd = String(manager.getCwd());
 	const branch = footer.footerData.getGitBranch?.();
 	const sessionName = manager.getSessionName();
 
-	const SEP = `${fg(MUTED)} | ${RESET}`;
+	const SEP = `${fg(SEP_COLOR)} | ${RESET}`;
 	const SEP_WIDTH = 3;
 
-	// Line 1: cwd | model | progress
-	const cwdText = `${fg(FOLDER_COLOR)}${FOLDER}${RESET} ${fg(CWD)}${cwd}${RESET}`;
+	// Line 1: [目录图标 完整工作目录] | [品牌图标 模型显示名  思考等级] | [存储图标 16格阴影进度条 已用/上限]
+	const cwdText = `${fg(CWD_COLOR)}${FOLDER} ${cwd}${RESET}`;
 
 	const id = model?.id ?? "no-model";
-	const brand = BRANDS.find((b) => id.toLowerCase().startsWith(b.prefix)) ?? FALLBACK;
-	let modelText = `${fg(brand.rgb)}${brand.icon}${RESET} ${fg(brand.rgb)}${displayName(id)}${RESET}`;
+	const brand = BRANDS.find((b) => id.toLowerCase().startsWith(b.prefix)) ?? FALLBACK_BRAND;
+	let modelText = `${fg(brand.rgb)}${brand.icon} ${displayName(id)}${RESET}`;
 	if (model?.reasoning) {
 		const level = state.thinkingLevel || "off";
-		const levelColor = LEVEL_COLORS[level] ?? MUTED;
+		const levelColor = LEVEL_COLORS[level] ?? LEVEL_COLORS.off;
 		modelText += ` ${fg(levelColor)}${THINKING} ${level}${RESET}`;
 	}
 
 	const usage = footer.getSessionStats().contextUsage;
 	const used = usage?.tokens ?? 0;
 	const window = usage?.contextWindow ?? model?.contextWindow ?? 0;
-	const percent = usage?.percent ?? null;
-	const pressure: Rgb =
-		percent !== null && percent >= 85
-			? [240, 110, 110]
-			: percent !== null && percent >= 60
-				? [230, 190, 90]
-				: [140, 200, 120];
+	const percent = usage?.percent ?? (window > 0 ? (used / window) * 100 : 0);
+	const pressureColor = lerpPressureColor(percent);
 
-	// Adaptive bar width based on line width
-	const fixedWidth = visibleWidth(cwdText) + SEP_WIDTH + visibleWidth(modelText) + SEP_WIDTH + 24;
-	let cells = 12;
-	if (width < fixedWidth + 12) {
+	// Adaptive bar width based on line width (16 cells default, downscales if tight)
+	const fixedWidth = visibleWidth(cwdText) + SEP_WIDTH + visibleWidth(modelText) + SEP_WIDTH + 18;
+	let cells = 16;
+	if (width < fixedWidth + 16) {
 		cells = Math.max(0, Math.floor(width - fixedWidth));
 	}
-	if (width >= 110) cells = 14;
 
-	const bar = percent === null || cells <= 0 ? "" : `${renderBar(cells, percent, pressure)} `;
-	const percentText = percent === null ? "?" : `${Math.round(percent)}%`;
-	const progressText = `${fg(pressure)}${DISK}${RESET} ${bar}${fg(pressure)}${formatTokens(used)}/${formatTokens(window)} (${percentText})${RESET}`;
+	const bar = cells > 0 ? `${renderBar(cells, percent, pressureColor)} ` : "";
+	const progressText = `${fg(pressureColor)}${DISK}${RESET} ${bar}${fg(pressureColor)}${formatTokens(used)}/${formatTokens(window)}${RESET}`;
 
 	let line1 = `${cwdText}${SEP}${modelText}${SEP}${progressText}`;
 	if (visibleWidth(line1) > width) {
 		line1 = truncateToWidth(line1, width, "...");
 	}
 
-	// Line 2: session title | git branch
-	const titlePart = sessionName ? `${fg(MUTED)}${COMMENT}${RESET} ${fg(TITLE)}${sessionName}${RESET}` : "";
-	const gitPart = branch ? `${fg(BRANCH)}${BRANCH_ICON} ${branch}${RESET}` : "";
+	// Line 2: [气泡图标 会话标题] | [Git分支图标 分支名]
+	const titlePart = sessionName ? `${fg(TITLE_COLOR)}${COMMENT} ${sessionName}${RESET}` : "";
+	const gitPart = branch ? `${fg(BRANCH_COLOR)}${BRANCH_ICON} ${branch}${RESET}` : "";
 
 	let line2 = "";
 	if (titlePart && gitPart) {

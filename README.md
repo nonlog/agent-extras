@@ -26,20 +26,22 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 
 ### Custom footer
 
-`extensions/footer.ts` replaces `FooterComponent.render` with a clean two-line layout:
+`extensions/footer.ts` replaces `FooterComponent.render` with a two-line layout matching Droid CLI statusline:
 
 ```
- D:\Workspace\General |  Gemini 3.8 Flash  high |  [███████▓▒░░░] 254k/400k (64%)
- 检查 pi 插件冲突：verb、polish、cursor 等 |  main
+ D:\Workspace\General |  DeepSeek V4.1 Flash  high |  [████████████▒▒▒▒] 300k/400k
+󰭹 Verify Droid skills and MCP setup |  main
 ```
 
-- Line 1: `cwd | model | progress`
-  - Folder icon and cwd path share the same warm-gold color.
-  - Brand logo and model display name in matching brand color, followed by a sparkle glyph `` and thinking level in a per-level color.
-  - Context progress bar in brackets `[███▓▒░░░]` with shade ramp, database icon, and token usage count.
-- Line 2: `session title | git info`
-  - Refined outline comment icon `` followed by the session title.
-  - Git branch behind branch icon ``.
+- Line 1: `[cwd] | [model + thinking] | [context bar + tokens]`
+  - Folder icon `` and full cwd path in warm gold `#d7af00`.
+  - Brand logo and model name in official brand color, followed by `` and thinking level in Tailwind-styled effort color (supports `dynamic`).
+  - Storage icon ``, 16-cell context bar `[████▒▒▒▒]` with smooth LERP color interpolation (green → amber → danger red), and token usage `used/limit`.
+- Line 2: `[session title] | [git branch]`
+  - Modern outline chat icon `󰭹` with title in soft steel blue `#87afd7`.
+  - Git branch icon `` with branch name in vibrant light green `#afff5f`.
+- Separators ` | ` in low-contrast neutral gray `#5f5f5f`.
+- All text styles prefixed with `\x1b[22;1;` (cancels dim, enables bold highlight).
 - Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.
 
 Model brand logos are drawn from **Herdr Agent Icons Max** (`U+E1A0`–`U+E1BB`). That font carries those codepoints and nothing else, so the terminal must list it as a fallback or every icon renders as tofu:
