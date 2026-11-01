@@ -25,7 +25,7 @@
       "./packages/pi-polish/extensions/tools.ts",
       "./packages/pi-polish/extensions/chrome.ts",
       "./packages/pi-polish/extensions/footer.ts",
-      "./packages/pi-bar-cursor/extensions",
+      "./packages/pi-bar-cursor/extensions/bar-cursor.ts",
       "./packages/pi-spinner-verbs/extensions/spinner-verbs"
     ]
   },
