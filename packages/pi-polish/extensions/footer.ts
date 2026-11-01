@@ -86,14 +86,6 @@ function displayName(id: string): string {
 	return [brand?.label, ...words].filter(Boolean).join(" ");
 }
 
-/** Keeps the right column whole and truncates the left one. */
-function placeLeft(left: string, right: string, width: number): string {
-	const rightWidth = visibleWidth(right);
-	const room = width - rightWidth - 1;
-	const shown = visibleWidth(left) <= room ? left : room > 4 ? truncateToWidth(left, room, "...") : "";
-	return shown + " ".repeat(Math.max(1, width - visibleWidth(shown) - rightWidth)) + right;
-}
-
 /** Solid fill with a three-cell shade ramp inside brackets, so the leading edge fades instead of stopping hard. */
 function renderBar(cells: number, percent: number, color: Rgb): string {
 	const filled = Math.floor((Math.max(0, Math.min(100, percent)) / 100) * cells);
@@ -116,24 +108,19 @@ function build(footer: any, width: number): string[] {
 	const branch = footer.footerData.getGitBranch?.();
 	const sessionName = manager.getSessionName();
 
-	// Line 1: Workspace & Task Context (unified flow from location to active task)
-	let line1 = `${fg(FOLDER_COLOR)}${FOLDER}${RESET} ${fg(CWD)}${cwd}${RESET}`;
-	if (branch) {
-		line1 += `  ${fg(BRANCH)}${BRANCH_ICON} ${branch}${RESET}`;
-	}
-	if (sessionName) {
-		line1 += `  ${fg(MUTED)}•${RESET}  ${fg(MUTED)}${COMMENT}${RESET} ${fg(TITLE)}${sessionName}${RESET}`;
-	}
-	const first = truncateToWidth(line1, width, "...");
+	const SEP = `${fg(MUTED)} | ${RESET}`;
+	const SEP_WIDTH = 3;
 
-	// Line 2: Engine Status & Resource Monitor
+	// Line 1: cwd | model | progress
+	const cwdText = `${fg(FOLDER_COLOR)}${FOLDER}${RESET} ${fg(CWD)}${cwd}${RESET}`;
+
 	const id = model?.id ?? "no-model";
 	const brand = BRANDS.find((b) => id.toLowerCase().startsWith(b.prefix)) ?? FALLBACK;
-	let modelInfo = `${fg(brand.rgb)}${brand.icon}${RESET} ${fg(brand.rgb)}${displayName(id)}${RESET}`;
+	let modelText = `${fg(brand.rgb)}${brand.icon}${RESET} ${fg(brand.rgb)}${displayName(id)}${RESET}`;
 	if (model?.reasoning) {
 		const level = state.thinkingLevel || "off";
 		const levelColor = LEVEL_COLORS[level] ?? MUTED;
-		modelInfo += `  ${fg(levelColor)}${THINKING} ${level}${RESET}`;
+		modelText += ` ${fg(levelColor)}${THINKING} ${level}${RESET}`;
 	}
 
 	const usage = footer.getSessionStats().contextUsage;
@@ -147,13 +134,47 @@ function build(footer: any, width: number): string[] {
 				? [230, 190, 90]
 				: [140, 200, 120];
 
-	const cells = width >= 80 ? 14 : width >= 60 ? 10 : width >= 40 ? 6 : 0;
-	const bar = percent === null || cells === 0 ? "" : `${renderBar(cells, percent, pressure)} `;
-	const percentText = percent === null ? "?" : `${Math.round(percent)}%`;
-	const contextInfo = `${fg(pressure)}${DISK}${RESET} ${bar}${fg(pressure)}${formatTokens(used)}/${formatTokens(window)} (${percentText})${RESET}`;
+	// Adaptive bar width based on line width
+	const fixedWidth = visibleWidth(cwdText) + SEP_WIDTH + visibleWidth(modelText) + SEP_WIDTH + 24;
+	let cells = 12;
+	if (width < fixedWidth + 12) {
+		cells = Math.max(0, Math.floor(width - fixedWidth));
+	}
+	if (width >= 110) cells = 14;
 
-	const second = placeLeft(modelInfo, contextInfo, width);
-	return [first, second];
+	const bar = percent === null || cells <= 0 ? "" : `${renderBar(cells, percent, pressure)} `;
+	const percentText = percent === null ? "?" : `${Math.round(percent)}%`;
+	const progressText = `${fg(pressure)}${DISK}${RESET} ${bar}${fg(pressure)}${formatTokens(used)}/${formatTokens(window)} (${percentText})${RESET}`;
+
+	let line1 = `${cwdText}${SEP}${modelText}${SEP}${progressText}`;
+	if (visibleWidth(line1) > width) {
+		line1 = truncateToWidth(line1, width, "...");
+	}
+
+	// Line 2: session title | git branch
+	const titlePart = sessionName ? `${fg(MUTED)}${COMMENT}${RESET} ${fg(TITLE)}${sessionName}${RESET}` : "";
+	const gitPart = branch ? `${fg(BRANCH)}${BRANCH_ICON} ${branch}${RESET}` : "";
+
+	let line2 = "";
+	if (titlePart && gitPart) {
+		const gitWidth = visibleWidth(gitPart);
+		const availableForTitle = width - gitWidth - SEP_WIDTH;
+		if (availableForTitle > 4) {
+			const truncatedTitle =
+				visibleWidth(titlePart) <= availableForTitle
+					? titlePart
+					: truncateToWidth(titlePart, availableForTitle, "...");
+			line2 = `${truncatedTitle}${SEP}${gitPart}`;
+		} else {
+			line2 = truncateToWidth(`${titlePart}${SEP}${gitPart}`, width, "...");
+		}
+	} else if (titlePart) {
+		line2 = truncateToWidth(titlePart, width, "...");
+	} else if (gitPart) {
+		line2 = truncateToWidth(gitPart, width, "...");
+	}
+
+	return [line1, line2];
 }
 
 export default function (_pi: ExtensionAPI) {

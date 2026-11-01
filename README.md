@@ -26,15 +26,20 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 
 ### Custom footer
 
-`extensions/footer.ts` replaces `FooterComponent.render` with a two-line layout:
+`extensions/footer.ts` replaces `FooterComponent.render` with a clean two-line layout:
 
 ```
- D:\Workspace\General (main) • session title
- DeepSeek V4.1 Flash ◉ max                    ████░░░░░░░░░░░░ 95k/400k (24%)
+ D:\Workspace\General |  Gemini 3.8 Flash  high |  [███████▓▒░░░] 254k/400k (64%)
+ 检查 pi 插件冲突：verb、polish、cursor 等 |  main
 ```
 
-- Line 1: folder icon with matching warm-gold cwd path, ` <branch>` when in a git repo, and session name behind a refined outline comment icon ``.
-- Line 2: brand icon and display name in matching brand color, a sparkle icon `` plus the thinking level in a per-level color, and a right-aligned context bar with brackets `[███▓▒░░░]` before the token count. The bar turns yellow at 60% and red at 85%.
+- Line 1: `cwd | model | progress`
+  - Folder icon and cwd path share the same warm-gold color.
+  - Brand logo and model display name in matching brand color, followed by a sparkle glyph `` and thinking level in a per-level color.
+  - Context progress bar in brackets `[███▓▒░░░]` with shade ramp, database icon, and token usage count.
+- Line 2: `session title | git info`
+  - Refined outline comment icon `` followed by the session title.
+  - Git branch behind branch icon ``.
 - Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.
 
 Model brand logos are drawn from **Herdr Agent Icons Max** (`U+E1A0`–`U+E1BB`). That font carries those codepoints and nothing else, so the terminal must list it as a fallback or every icon renders as tofu:
