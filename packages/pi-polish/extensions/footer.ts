@@ -10,16 +10,18 @@ const fg = (c: Rgb) => `\x1b[38;2;${c[0]};${c[1]};${c[2]}m`;
 
 // Decoration comes from CaskaydiaCove NF, the terminal's primary face.
 const FOLDER = "\uf07b"; // nf-fa-folder
-const COMMENT = "\uf075"; // nf-fa-comment
+const BRANCH_ICON = "\uf418"; // nf-oct-git_branch
+const COMMENT = "\uf0e5"; // nf-fa-comment_o (refined outline speech bubble)
 const DISK = "\uf1c0"; // nf-fa-database
-const THINKING = "\uf09d1"; // nf-md-brain — marks the thinking level, which the text and colour then grade
+const THINKING = "\uec10"; // nf-cod-sparkle (AI reasoning spark)
 const SOLID = "\u2588"; // █
 const SHADE = ["\u2593", "\u2592", "\u2591"]; // ▓ ▒ ░ — the ramp behind the fill
 
-const CWD: Rgb = [110, 170, 225];
+// Palette: unified warm gold for folder and cwd path
 const FOLDER_COLOR: Rgb = [217, 175, 87];
+const CWD: Rgb = [217, 175, 87];
 const BRANCH: Rgb = [150, 175, 120];
-const TITLE: Rgb = [205, 205, 205];
+const TITLE: Rgb = [210, 210, 210];
 const MUTED: Rgb = [130, 130, 130];
 const FAINT: Rgb = [85, 85, 85];
 
@@ -49,8 +51,6 @@ const LEVEL_COLORS: Record<string, Rgb> = {
 
 const patched = Symbol.for("pi-polish.footer");
 
-// The catch below falls back to pi's own footer, which looks like "the patch did nothing".
-// Leave a trace so that failure is diagnosable instead of silent.
 let reportedFailure = false;
 function reportFailure(err: unknown): void {
 	if (reportedFailure) return;
@@ -80,21 +80,10 @@ function displayName(id: string): string {
 	const words: string[] = [];
 	for (const raw of rest.split(/[-_]/).filter(Boolean)) {
 		const previous = words[words.length - 1] ?? "";
-		// sonnet-5-5 → "5.5", not "5 5"
 		if (/^\d+$/.test(raw) && /^\d+$/.test(previous)) words[words.length - 1] = `${previous}.${raw}`;
 		else words.push(raw[0].toUpperCase() + raw.slice(1));
 	}
 	return [brand?.label, ...words].filter(Boolean).join(" ");
-}
-
-/** Keeps the left column, gives the remaining space to the right one and truncates it. */
-function placeRight(left: string, right: string, width: number): string {
-	if (!right) return truncateToWidth(left, width, "...");
-	const leftWidth = visibleWidth(left);
-	const room = width - leftWidth - 1;
-	if (room <= 4) return truncateToWidth(left, width, "...");
-	const shown = visibleWidth(right) <= room ? right : truncateToWidth(right, room, "...");
-	return left + " ".repeat(Math.max(1, width - leftWidth - visibleWidth(shown))) + shown;
 }
 
 /** Keeps the right column whole and truncates the left one. */
@@ -105,7 +94,7 @@ function placeLeft(left: string, right: string, width: number): string {
 	return shown + " ".repeat(Math.max(1, width - visibleWidth(shown) - rightWidth)) + right;
 }
 
-/** Solid fill with a three-cell shade ramp, so the leading edge fades instead of stopping hard. */
+/** Solid fill with a three-cell shade ramp inside brackets, so the leading edge fades instead of stopping hard. */
 function renderBar(cells: number, percent: number, color: Rgb): string {
 	const filled = Math.floor((Math.max(0, Math.min(100, percent)) / 100) * cells);
 	let out = filled > 0 ? `${fg(color)}${SOLID.repeat(filled)}${RESET}` : "";
@@ -113,7 +102,7 @@ function renderBar(cells: number, percent: number, color: Rgb): string {
 		const step = i - filled;
 		out += `${fg(step === 0 ? color : step === 1 ? MUTED : FAINT)}${SHADE[Math.min(step, SHADE.length - 1)]}${RESET}`;
 	}
-	return out;
+	return `${fg(MUTED)}[${RESET}${out}${fg(MUTED)}]${RESET}`;
 }
 
 function build(footer: any, width: number): string[] {
@@ -127,31 +116,44 @@ function build(footer: any, width: number): string[] {
 	const branch = footer.footerData.getGitBranch?.();
 	const sessionName = manager.getSessionName();
 
-	const left = `${fg(FOLDER_COLOR)}${FOLDER}${RESET} ${fg(CWD)}${cwd}${RESET}${branch ? ` ${fg(BRANCH)}(${branch})${RESET}` : ""}`;
-	const title = sessionName ? `${fg(MUTED)}${COMMENT}${RESET} ${fg(TITLE)}${sessionName}${RESET}` : "";
-	const first = placeRight(left, title, width);
+	// Line 1: Workspace & Task Context (unified flow from location to active task)
+	let line1 = `${fg(FOLDER_COLOR)}${FOLDER}${RESET} ${fg(CWD)}${cwd}${RESET}`;
+	if (branch) {
+		line1 += `  ${fg(BRANCH)}${BRANCH_ICON} ${branch}${RESET}`;
+	}
+	if (sessionName) {
+		line1 += `  ${fg(MUTED)}•${RESET}  ${fg(MUTED)}${COMMENT}${RESET} ${fg(TITLE)}${sessionName}${RESET}`;
+	}
+	const first = truncateToWidth(line1, width, "...");
 
+	// Line 2: Engine Status & Resource Monitor
 	const id = model?.id ?? "no-model";
 	const brand = BRANDS.find((b) => id.toLowerCase().startsWith(b.prefix)) ?? FALLBACK;
 	let modelInfo = `${fg(brand.rgb)}${brand.icon}${RESET} ${fg(brand.rgb)}${displayName(id)}${RESET}`;
 	if (model?.reasoning) {
 		const level = state.thinkingLevel || "off";
 		const levelColor = LEVEL_COLORS[level] ?? MUTED;
-		modelInfo += ` ${fg(levelColor)}${THINKING} ${level}${RESET}`;
+		modelInfo += `  ${fg(levelColor)}${THINKING} ${level}${RESET}`;
 	}
 
 	const usage = footer.getSessionStats().contextUsage;
 	const used = usage?.tokens ?? 0;
 	const window = usage?.contextWindow ?? model?.contextWindow ?? 0;
 	const percent = usage?.percent ?? null;
-	const pressure: Rgb = percent !== null && percent >= 85 ? [240, 110, 110] : percent !== null && percent >= 60 ? [230, 190, 90] : [140, 200, 120];
+	const pressure: Rgb =
+		percent !== null && percent >= 85
+			? [240, 110, 110]
+			: percent !== null && percent >= 60
+				? [230, 190, 90]
+				: [140, 200, 120];
 
-	const cells = width >= 60 ? 16 : width >= 40 ? 10 : 0;
+	const cells = width >= 80 ? 14 : width >= 60 ? 10 : width >= 40 ? 6 : 0;
 	const bar = percent === null || cells === 0 ? "" : `${renderBar(cells, percent, pressure)} `;
 	const percentText = percent === null ? "?" : `${Math.round(percent)}%`;
 	const contextInfo = `${fg(pressure)}${DISK}${RESET} ${bar}${fg(pressure)}${formatTokens(used)}/${formatTokens(window)} (${percentText})${RESET}`;
 
-	return [first, placeLeft(modelInfo, contextInfo, width)];
+	const second = placeLeft(modelInfo, contextInfo, width);
+	return [first, second];
 }
 
 export default function (_pi: ExtensionAPI) {
@@ -164,7 +166,7 @@ export default function (_pi: ExtensionAPI) {
 				return build(this, width);
 			} catch (err) {
 				reportFailure(err);
-				return original.call(this, width); // a broken footer must never blank the screen
+				return original.call(this, width);
 			}
 		};
 		replacement[patched] = true;

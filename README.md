@@ -33,8 +33,8 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
  DeepSeek V4.1 Flash ◉ max                    ████░░░░░░░░░░░░ 95k/400k (24%)
 ```
 
-- Line 1: folder icon, colored cwd, `(branch)` when the cwd is a repo, and the session name right-aligned behind a comment icon.
-- Line 2: brand icon and display name in the same brand color, a brain icon plus the thinking level in a per-level color, and a right-aligned context bar whose leading edge fades through `▓▒░` before the token count. The bar turns yellow at 60% and red at 85%.
+- Line 1: folder icon with matching warm-gold cwd path, ` <branch>` when in a git repo, and session name behind a refined outline comment icon ``.
+- Line 2: brand icon and display name in matching brand color, a sparkle icon `` plus the thinking level in a per-level color, and a right-aligned context bar with brackets `[███▓▒░░░]` before the token count. The bar turns yellow at 60% and red at 85%.
 - Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.
 
 Model brand logos are drawn from **Herdr Agent Icons Max** (`U+E1A0`–`U+E1BB`). That font carries those codepoints and nothing else, so the terminal must list it as a fallback or every icon renders as tofu:
