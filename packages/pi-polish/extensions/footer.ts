@@ -1,3 +1,6 @@
+import { appendFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { type ExtensionAPI, FooterComponent } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
@@ -45,6 +48,22 @@ const LEVEL_COLORS: Record<string, Rgb> = {
 };
 
 const patched = Symbol.for("pi-polish.footer");
+
+// The catch below falls back to pi's own footer, which looks like "the patch did nothing".
+// Leave a trace so that failure is diagnosable instead of silent.
+let reportedFailure = false;
+function reportFailure(err: unknown): void {
+	if (reportedFailure) return;
+	reportedFailure = true;
+	try {
+		appendFileSync(
+			join(homedir(), ".pi", "agent", "pi-polish-footer-error.log"),
+			`${new Date().toISOString()} ${(err as Error)?.stack ?? String(err)}\n`,
+		);
+	} catch {
+		// reporting must never break rendering
+	}
+}
 
 function formatTokens(count: number): string {
 	if (count < 1000) return `${count}`;
@@ -143,7 +162,8 @@ export default function (_pi: ExtensionAPI) {
 		const replacement: any = function (this: any, width: number) {
 			try {
 				return build(this, width);
-			} catch {
+			} catch (err) {
+				reportFailure(err);
 				return original.call(this, width); // a broken footer must never blank the screen
 			}
 		};
