@@ -21,7 +21,7 @@ const SHADE = ["\u2593", "\u2592", "\u2591"]; // ▓ ▒ ░ — the ramp behind
 const FOLDER_COLOR: Rgb = [217, 175, 87];
 const CWD: Rgb = [217, 175, 87];
 const BRANCH: Rgb = [150, 175, 120];
-const TITLE: Rgb = [210, 210, 210];
+const TITLE: Rgb = [135, 175, 215]; // #87afd7
 const MUTED: Rgb = [130, 130, 130];
 const FAINT: Rgb = [85, 85, 85];
 
