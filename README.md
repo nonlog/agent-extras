@@ -33,9 +33,9 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
  DeepSeek V4.1 Flash ◉ max                    ████░░░░░░░░░░░░ 95k/400k (24%)
 ```
 
-- Line 1 is the working directory, the git branch when the cwd is a repo, and the session name.
-- Line 2 is the model brand icon, a generated display name (`deepseek-v4.1-flash` → `DeepSeek V4.1 Flash`), the thinking level, and a context bar that turns yellow at 60% and red at 85%.
-- A third line still appears when extensions call `ctx.ui.setStatus()`, so pi-lens, ponytail and friends keep their row.
+- Line 1: folder icon, colored cwd, `(branch)` when the cwd is a repo, and the session name right-aligned behind a comment icon.
+- Line 2: brand icon and display name in the same brand color, `◉` plus the thinking level in a per-level color, and a right-aligned context bar whose leading edge fades through `▓▒░` before the token count. The bar turns yellow at 60% and red at 85%.
+- Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.
 
 Model brand logos are drawn from **Herdr Agent Icons Max** (`U+E1A0`–`U+E1BB`). That font carries those codepoints and nothing else, so the terminal must list it as a fallback or every icon renders as tofu:
 
@@ -47,9 +47,13 @@ fallback = ["Herdr Agent Icons Max", "Symbols Nerd Font Mono"]
 
 Brands with an icon: deepseek, claude, gemini, gpt, grok, glm, muse. Anything else falls back to a generic chip glyph from CaskaydiaCove NF.
 
-### pi-bar-cursor is unmodified
+### pi-bar-cursor patches
 
-It is copied here as-is. Note it overlaps with `pi-open-tui`, which also owns the caret:
+One local fix on top of upstream `0.1.1`: the caret no longer dies after `/reload`.
+
+`handleReloadCommand` emits `session_start` and only then calls `applyRuntimeSettings()`, which runs `ui.setShowHardwareCursor(settings.showHardwareCursor)`. With `showHardwareCursor: false` in settings, that write landed *after* the extension had turned the cursor on, and `ensureHardwareCursorVisible` memoised per `(tui, generation)` so it never retried — the caret stayed hidden until pi was fully restarted. The guard now reads the live TUI state instead of the memo, so the next render re-asserts it.
+
+It also overlaps with `pi-open-tui`, which owns the caret too:
 
 - pi-open-tui writes DECSCUSR `\x1b[6 q` (steady bar) and manages the hardware cursor itself
 - pi-bar-cursor writes `\x1b[5 q` (blinking bar) plus an `OSC 12` accent color

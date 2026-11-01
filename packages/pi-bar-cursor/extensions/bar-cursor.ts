@@ -38,8 +38,6 @@ type CursorState = {
 	lastTui: TUI | null;
 	cursorColor: string;
 	exitCleanupInstalled: boolean;
-	visibilityTui: TUI | null;
-	visibilityGeneration: number;
 	terminalWriteStates: Set<TerminalWriteState>;
 	editorOriginalRender?: RenderMethod;
 	inputOriginalRender?: RenderMethod;
@@ -63,8 +61,6 @@ function getOrCreateSharedState(proto: object): CursorState {
 		lastTui: null,
 		cursorColor: DARK_THEME_ACCENT,
 		exitCleanupInstalled: false,
-		visibilityTui: null,
-		visibilityGeneration: -1,
 		terminalWriteStates: new Set(),
 	};
 	Object.defineProperty(holder, SHARED_STATE, {
@@ -144,11 +140,12 @@ function setHardwareCursorVisible(visible: boolean, tui = state.lastTui): void {
  */
 function ensureHardwareCursorVisible(tui: TUI): void {
 	if (!state.active) return;
+	// /reload emits session_start and only then calls applyRuntimeSettings(), which forces
+	// showHardwareCursor back to the settings value (false). Memoising per (tui, generation) let that
+	// write win for the rest of the generation, so the caret stayed gone until a full restart. Read
+	// the live TUI state instead and re-assert on the next render.
+	if (tui.getShowHardwareCursor()) return;
 	const generation = state.generation;
-	if (state.visibilityTui === tui && state.visibilityGeneration === generation) return;
-
-	state.visibilityTui = tui;
-	state.visibilityGeneration = generation;
 	queueMicrotask(() => {
 		if (!state.active || state.lastTui !== tui || state.generation !== generation) return;
 		try {
@@ -234,8 +231,6 @@ export default function (pi: ExtensionAPI) {
 		boundGeneration = ++state.generation;
 		state.active = true;
 		state.lastTui = null;
-		state.visibilityTui = null;
-		state.visibilityGeneration = -1;
 		installExitCleanup();
 		try {
 			captureCursorColor(ctx.ui.theme.getFgAnsi("accent"));
@@ -267,8 +262,6 @@ export default function (pi: ExtensionAPI) {
 		setHardwareCursorVisible(false);
 		state.active = false;
 		state.lastTui = null;
-		state.visibilityTui = null;
-		state.visibilityGeneration = -1;
 		if (event.reason === "quit") {
 			// Return both properties to Windows Terminal's profile defaults.
 			restoreCursorAppearance();
