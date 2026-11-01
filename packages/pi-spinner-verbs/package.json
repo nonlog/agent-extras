@@ -1,0 +1,38 @@
+{
+  "name": "@robhowley/pi-spinner-verbs",
+  "version": "3.7.0-patched.1",
+  "type": "module",
+  "description": "Themed thinking text for Pi: built-in spinner verb packs, random per-session themes, and custom verb files.",
+  "license": "MIT",
+  "author": "Rob Howley (upstream); patched fork maintained by nonlog",
+  "files": [
+    "extensions",
+    "spinner-verbs",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "pi-package",
+    "pi-userland",
+    "spinner",
+    "spinner-verbs",
+    "pi-extension"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/spinner-verbs"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nonlog/pi-extensions.git",
+    "directory": "packages/pi-spinner-verbs"
+  },
+  "homepage": "https://github.com/nonlog/pi-extensions/tree/main/packages/pi-spinner-verbs#readme",
+  "bugs": {
+    "url": "https://github.com/nonlog/pi-extensions/issues"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

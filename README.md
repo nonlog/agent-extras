@@ -13,6 +13,7 @@ The root `package.json` declares every extension under `pi.extensions`, so one i
 | Package | What it does | Origin |
 |---|---|---|
 | [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line, custom two-line footer with model brand icons | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
+| [`packages/pi-spinner-verbs`](./packages/pi-spinner-verbs) | Themed spinner verbs (13 packs) with `/verbs` and `/verb-status`; verbs rotate per model turn instead of on a 3-second timer | Patched fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) (MIT, Rob Howley) |
 | [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
 
 ### pi-polish patches
@@ -53,6 +54,12 @@ fallback = ["Herdr Agent Icons Max", "Symbols Nerd Font Mono"]
 ```
 
 Brands with an icon: deepseek, claude, gemini, gpt, grok, glm, muse. Anything else falls back to a generic chip glyph from CaskaydiaCove NF.
+
+### pi-spinner-verbs patches
+
+One change on top of upstream `3.7.0`: verbs no longer rotate on a clock.
+
+Upstream ran `setInterval(tick, 3000)`, so the word changed every 3 seconds regardless of what the agent was doing. This fork picks a verb on `turn_start` and holds it for the whole turn — the same way Claude Code behaves, where a long single thought keeps one word and the word changes when the work moves on. There is no timer at all; `/verbs (default)` and `/verb-status` now track the active verb list instead of the interval handle.
 
 ### pi-bar-cursor patches
 

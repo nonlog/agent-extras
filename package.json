@@ -5,7 +5,7 @@
   "license": "MIT",
   "author": "nonlog",
   "type": "module",
-  "description": "Pi extensions: a patched pi-polish and pi-bar-cursor, kept together so they can be installed from one source",
+  "description": "Pi extensions: patched forks of pi-polish and pi-spinner-verbs plus pi-bar-cursor, kept together so they can be installed from one source",
   "homepage": "https://github.com/nonlog/pi-extensions#readme",
   "repository": {
     "type": "git",
@@ -25,7 +25,8 @@
       "./packages/pi-polish/extensions/tools.ts",
       "./packages/pi-polish/extensions/chrome.ts",
       "./packages/pi-polish/extensions/footer.ts",
-      "./packages/pi-bar-cursor/extensions"
+      "./packages/pi-bar-cursor/extensions",
+      "./packages/pi-spinner-verbs/extensions/spinner-verbs"
     ]
   },
   "dependencies": {

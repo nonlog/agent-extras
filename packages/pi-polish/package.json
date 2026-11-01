@@ -30,7 +30,8 @@
   "pi": {
     "extensions": [
       "./extensions/tools.ts",
-      "./extensions/chrome.ts"
+      "./extensions/chrome.ts",
+      "./extensions/footer.ts"
     ],
     "image": "https://raw.githubusercontent.com/Pringled/pi-extensions/main/assets/images/pi-polish-dark.gif"
   },
