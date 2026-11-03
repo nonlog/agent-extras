@@ -1,5 +1,4 @@
-import { execFile } from "node:child_process";
-import { appendFileSync, readdirSync, type Dirent } from "node:fs";
+import { appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type ExtensionAPI, FooterComponent } from "@earendil-works/pi-coding-agent";
@@ -18,9 +17,6 @@ const DISK = "\uf1c0"; // U+F1C0 Nerd Font (FontAwesome)
 const THINKING = "\uec10"; // U+EC10 Nerd Font (cod-sparkle)
 const SOLID = "\u2588"; // U+2588 solid fill block
 const SHADE = "\u2592"; // U+2592 medium shade block
-const DIRTY_MARK = "\u25cf"; // U+25CF black circle: uncommitted changes
-const AHEAD_MARK = "\u2191"; // U+2191 up arrow
-const BEHIND_MARK = "\u2193"; // U+2193 down arrow
 
 // Functional Palette (ANSI 256 / 24-bit Truecolor)
 const CWD_COLOR: Rgb = [215, 175, 0]; // #d7af00 (ANSI 178) warm gold
@@ -32,7 +28,6 @@ const CWD_COLOR: Rgb = [215, 175, 0]; // #d7af00 (ANSI 178) warm gold
 const AGENT_ICON = "\ue1a9";
 const AGENT_COLOR: Rgb = [106, 159, 204]; // #6a9fcc
 const BRANCH_COLOR: Rgb = [175, 255, 95]; // #afff5f (ANSI 155) vibrant light green
-const DIRTY_COLOR: Rgb = [230, 190, 90]; // #e6be5a amber: uncommitted changes, ahead/behind
 const SEP_COLOR: Rgb = [95, 95, 95]; // #5f5f5f (ANSI 59) low-contrast neutral gray
 
 // Brand logos (Herdr Agent Icons Max PUA U+E1A0..U+E1BB) & Official Brand Colors
@@ -51,180 +46,6 @@ const BRANDS: Brand[] = [
 	{ prefix: "grok", icon: "\ue1b1", label: "Grok", rgb: [201, 201, 209] }, // #c9c9d1
 ];
 const FALLBACK_BRAND: Brand = { prefix: "", icon: "\u{F09D1}", label: "", rgb: [156, 163, 175] }; // U+F09D1 md-brain #9ca3af
-
-// Tech stack of the working directory, from top-level marker files. Glyphs are Nerd Font devicons
-// (CaskaydiaCove NF); colors are the vendors' published brand colors. Same table as
-// ~/.claude/statusline.js and ~/.factory/statusline.js so all three status lines agree.
-type Stack = { icon: string; rgb: Rgb; file: string[]; ext: string[] };
-const STACKS: Stack[] = [
-	{ icon: "\ue738", rgb: [248, 152, 32], file: ["pom.xml", "build.gradle"], ext: [".java"] },
-	{ icon: "\ue634", rgb: [127, 82, 255], file: ["build.gradle.kts", "settings.gradle.kts", "androidmanifest.xml"], ext: [".kt", ".kts"] },
-	{ icon: "\ue606", rgb: [55, 118, 171], file: ["pyproject.toml", "requirements.txt", "setup.py", "pipfile"], ext: [".py"] },
-	{ icon: "\ue628", rgb: [49, 120, 198], file: ["tsconfig.json"], ext: [".ts", ".tsx"] },
-	{ icon: "\ue718", rgb: [95, 160, 78], file: ["package.json"], ext: [] },
-	{ icon: "\ue627", rgb: [0, 173, 216], file: ["go.mod"], ext: [".go"] },
-	{ icon: "\ue7a8", rgb: [222, 165, 132], file: ["cargo.toml"], ext: [".rs"] },
-	{ icon: "\ue77f", rgb: [81, 43, 212], file: [], ext: [".csproj", ".sln", ".fsproj"] },
-	{ icon: "\ue61d", rgb: [0, 89, 156], file: ["cmakelists.txt"], ext: [".cpp", ".cc", ".hpp"] },
-	{ icon: "\ue755", rgb: [240, 81, 56], file: ["package.swift"], ext: [".swift"] },
-	{ icon: "\ue798", rgb: [1, 117, 194], file: ["pubspec.yaml"], ext: [".dart"] },
-	{ icon: "\ue739", rgb: [204, 52, 45], file: ["gemfile"], ext: [".rb"] },
-	{ icon: "\ue73d", rgb: [119, 123, 180], file: ["composer.json"], ext: [".php"] },
-	{ icon: "\u{F0844}", rgb: [79, 192, 141], file: ["vue.config.js"], ext: [".vue"] },
-	{ icon: "\ue736", rgb: [227, 79, 38], file: ["index.html"], ext: [".html"] },
-	{ icon: "\uf308", rgb: [36, 150, 237], file: ["dockerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml"], ext: [] },
-	{ icon: "\uf489", rgb: [137, 224, 81], file: [], ext: [".sh", ".bash"] },
-	{ icon: "\u{F0A0A}", rgb: [83, 145, 254], file: [], ext: [".ps1", ".psm1"] },
-];
-
-// Sources live in standard roots, not next to the manifest: an Android module's .kt files sit under
-// app/src/main/java, a TypeScript package's under src or lib. A whole-tree walk was tried in the
-// Claude Code statusline and dropped — reaching Android needs depth 4+, and it is slow and noisy
-// (one vendored .go file misreports the stack). So: descend only when a manifest says there is
-// something to find, and only into the roots below.
-const SOURCE_ROOTS = [
-	"app/src/main/java",
-	"app/src/main/kotlin",
-	"src/main/java",
-	"src/main/kotlin",
-	"src",
-	"lib",
-	"app",
-	"extensions",
-	"packages",
-];
-const JVM_MARKERS = ["pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts"];
-const SKIP_DIRS = new Set([
-	"node_modules",
-	"build",
-	"dist",
-	"out",
-	"target",
-	".git",
-	".gradle",
-	".idea",
-	"__pycache__",
-	"venv",
-	".venv",
-	"vendor",
-]);
-
-function sourceExts(cwd: string, maxDepth = 8, maxEntries = 3000): Set<string> {
-	const exts = new Set<string>();
-	const stack: Array<[string, number]> = SOURCE_ROOTS.map((rel) => [join(cwd, rel), 0]);
-	let seen = 0;
-	while (stack.length > 0 && seen < maxEntries) {
-		const [dir, depth] = stack.pop()!;
-		let entries: Dirent[];
-		try {
-			entries = readdirSync(dir, { withFileTypes: true });
-		} catch {
-			continue;
-		}
-		for (const e of entries) {
-			if (++seen > maxEntries) break;
-			if (e.isFile()) {
-				const dot = e.name.lastIndexOf(".");
-				if (dot > 0) exts.add(e.name.slice(dot).toLowerCase());
-			} else if (depth < maxDepth && !SKIP_DIRS.has(e.name.toLowerCase())) {
-				stack.push([join(dir, e.name), depth + 1]);
-			}
-		}
-	}
-	return exts;
-}
-
-// ponytail: two readdir passes per repo change, not per render — detectStacks is memoised below.
-function detectStacks(cwd: string): Stack[] {
-	let entries: Dirent[];
-	try {
-		entries = readdirSync(cwd, { withFileTypes: true });
-	} catch {
-		return [];
-	}
-	const files = new Set<string>();
-	const exts = new Set<string>();
-	for (const e of entries) {
-		if (!e.isFile()) continue;
-		files.add(e.name.toLowerCase());
-		const dot = e.name.lastIndexOf(".");
-		if (dot > 0) exts.add(e.name.slice(dot).toLowerCase());
-	}
-	if (files.has("package.json") || JVM_MARKERS.some((m) => files.has(m))) {
-		for (const x of sourceExts(cwd)) exts.add(x);
-	}
-
-	const out: Stack[] = [];
-	for (const s of STACKS) {
-		if (s.file.some((f) => files.has(f)) || s.ext.some((x) => exts.has(x))) {
-			out.push(s);
-			if (out.length === 6) break;
-		}
-	}
-	return out;
-}
-
-// detectStacks walks directories, so it must not run on every render: cache per cwd for
-// STACK_TTL_MS. A new marker file shows up within that window.
-const STACK_TTL_MS = 10_000;
-let stackCache: { cwd: string; at: number; stacks: Stack[] } | null = null;
-function stacksFor(cwd: string): Stack[] {
-	const now = Date.now();
-	if (stackCache && stackCache.cwd === cwd && now - stackCache.at < STACK_TTL_MS) return stackCache.stacks;
-	const stacks = detectStacks(cwd);
-	stackCache = { cwd, at: now, stacks };
-	return stacks;
-}
-
-// Git state beyond the branch name: dirty worktree and ahead/behind the upstream. One
-// `git status --porcelain=v2 --branch` answers all three, but it is a process spawn, so it runs
-// asynchronously and the render always uses the last known value. Nothing blocks the UI.
-const GIT_STATUS_TTL_MS = 5_000;
-let gitCache: { cwd: string; at: number; dirty: boolean; ahead: number; behind: number } | null = null;
-let gitInFlight = false;
-
-function gitStatus(cwd: string): { dirty: boolean; ahead: number; behind: number } {
-	const now = Date.now();
-	const fresh = gitCache && gitCache.cwd === cwd && now - gitCache.at <= GIT_STATUS_TTL_MS;
-	if (!fresh && !gitInFlight) {
-		gitInFlight = true;
-		const previous = gitCache && gitCache.cwd === cwd ? gitCache : null;
-		execFile(
-			"git",
-			["-C", cwd, "--no-optional-locks", "status", "--porcelain=v2", "--branch", "--untracked-files=normal"],
-			{ timeout: 4000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 },
-			(err, stdout) => {
-				gitInFlight = false;
-				// A failure (timeout, git missing) is cached too: retrying on every render would spawn
-				// a process per frame. The last known value survives, or clean on a first failure.
-				gitCache = err
-					? { cwd, at: Date.now(), dirty: previous?.dirty ?? false, ahead: previous?.ahead ?? 0, behind: previous?.behind ?? 0 }
-					: { cwd, at: Date.now(), ...parseGitStatus(String(stdout)) };
-			},
-		);
-	}
-	// First render in a new directory has no answer yet: report clean rather than stale.
-	if (!gitCache || gitCache.cwd !== cwd) return { dirty: false, ahead: 0, behind: 0 };
-	return gitCache;
-}
-
-function parseGitStatus(out: string): { dirty: boolean; ahead: number; behind: number } {
-	let dirty = false;
-	let ahead = 0;
-	let behind = 0;
-	for (const line of out.split("\n")) {
-		if (line.startsWith("# branch.ab ")) {
-			const m = /\+(\d+)\s+-(\d+)/.exec(line);
-			if (m) {
-				ahead = Number(m[1]);
-				behind = Number(m[2]);
-			}
-		} else if (line !== "" && !line.startsWith("# ")) {
-			dirty = true;
-		}
-	}
-	return { dirty, ahead, behind };
-}
 
 // Reasoning Effort Colors (Tailwind-based Truecolor)
 const LEVEL_COLORS: Record<string, Rgb> = {
@@ -359,21 +180,11 @@ function build(footer: any, width: number): string[] {
 		line1 = truncateToWidth(line1, width, "...");
 	}
 
-	// Line 2: [pi 图标 会话标题] | [分支图标 分支名 ●↑2↓1] [技术栈图标]
+	// Line 2: [气泡图标 会话标题] | [Git分支图标 分支名]
 	const titlePart = sessionName
 		? `${fg(AGENT_COLOR)}${AGENT_ICON} ${sessionName}${RESET}`
 		: "";
-	let gitPart = branch ? `${fg(BRANCH_COLOR)}${BRANCH_ICON} ${branch}${RESET}` : "";
-	if (branch) {
-		const status = gitStatus(cwd);
-		if (status.dirty) gitPart += ` ${fg(DIRTY_COLOR)}${DIRTY_MARK}${RESET}`;
-		if (status.ahead > 0) gitPart += ` ${fg(DIRTY_COLOR)}${AHEAD_MARK}${status.ahead}${RESET}`;
-		if (status.behind > 0) gitPart += ` ${fg(DIRTY_COLOR)}${BEHIND_MARK}${status.behind}${RESET}`;
-	}
-	const stackPart = stacksFor(cwd)
-		.map((s) => `${fg(s.rgb)}${s.icon}${RESET}`)
-		.join(" ");
-	gitPart = [gitPart, stackPart].filter(Boolean).join(" ");
+	const gitPart = branch ? `${fg(BRANCH_COLOR)}${BRANCH_ICON} ${branch}${RESET}` : "";
 
 	let line2 = "";
 	if (titlePart && gitPart) {

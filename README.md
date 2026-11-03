@@ -31,19 +31,16 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 
 ```
  D:\Workspace\General |  DeepSeek V4.1 Flash  high |  [████████████▒▒▒▒] 300k/400k
-󰭹 Verify Droid skills and MCP setup |  main ● ↑2 ↓1   
+󰭹 Verify Droid skills and MCP setup |  main
 ```
 
 - Line 1: `[cwd] | [model + thinking] | [context bar + tokens]`
   - Folder icon `` and full cwd path in warm gold `#d7af00`.
   - Brand logo and model name in official brand color, followed by `` and thinking level in Tailwind-styled effort color (supports `dynamic`).
   - Storage icon ``, 16-cell context bar `[████▒▒▒▒]` with smooth LERP color interpolation (green → amber → danger red), and token usage `used/limit`.
-- Line 2: `[session title] | [git branch + status] [tech stack]`
+- Line 2: `[session title] | [git branch]`
   - Session title icon ``, pi's own brand glyph (Herdr Agent Icons Max `U+E1A9`, glyph name `pi`) and the title itself share one color: pi.dev's accent blue `#6a9fcc` (`--color-accent-blue` / `--accent` in [pi.dev/style.css](https://pi.dev/style.css)), the same blue the site uses for links and the "yours" highlight.
-  - Git branch icon `` with branch name in vibrant light green `#afff5f`, followed by amber `#e6be5a` markers: `●` uncommitted changes, `↑n` ahead of upstream, `↓n` behind. All three come from one `git status --porcelain=v2 --branch`, cached for 5 s and refreshed asynchronously, so a render never spawns a process or blocks.
-  - Tech stack icons (Nerd Font devicons from CaskaydiaCove NF, each in its vendor's brand color) trail the branch, up to six: java, kotlin, python, typescript, node, go, rust, .NET, C++, swift, dart, ruby, php, vue, html, docker, shell, powershell. Detection reads the top-level marker files, and only descends into source roots (`src`, `lib`, `app`, `packages`, …) when a manifest (`package.json`, `pom.xml`, `build.gradle`) says there is something to find — cached for 10 s per cwd.
-
-The same line-2 design is mirrored in the Claude Code and Droid CLI status lines (`~/.claude/statusline.js`, `~/.factory/statusline.js`) so all three agents show identical stacks and git status.
+  - Git branch icon `` with branch name in vibrant light green `#afff5f`.
 - Separators ` | ` in low-contrast neutral gray `#5f5f5f`.
 - All text styles prefixed with `\x1b[22;1;` (cancels dim, enables bold highlight).
 - Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.
