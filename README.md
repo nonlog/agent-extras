@@ -39,7 +39,7 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
   - Brand logo and model name in official brand color, followed by `` and thinking level in Tailwind-styled effort color (supports `dynamic`).
   - Storage icon ``, 16-cell context bar `[████▒▒▒▒]` with smooth LERP color interpolation (green → amber → danger red), and token usage `used/limit`.
 - Line 2: `[session title] | [git branch]`
-  - Modern outline chat icon `󰭹` with title in soft steel blue `#87afd7`.
+  - Session title icon ``, pi's own brand glyph (Herdr Agent Icons Max `U+E1A9`, glyph name `pi`) in pi's brand coral `#e48a7a`, followed by the title in soft steel blue `#87afd7`.
   - Git branch icon `` with branch name in vibrant light green `#afff5f`.
 - Separators ` | ` in low-contrast neutral gray `#5f5f5f`.
 - All text styles prefixed with `\x1b[22;1;` (cancels dim, enables bold highlight).

@@ -13,7 +13,12 @@ const fg = (c: Rgb) => `\x1b[22;1;38;2;${c[0]};${c[1]};${c[2]}m`;
 // Unicode Icons (Nerd Font & standard Block Elements)
 const FOLDER = "\uf07b"; // U+F07B Nerd Font (FontAwesome)
 const BRANCH_ICON = "\ue725"; // U+E725 Nerd Font (devicons)
-const COMMENT = "\u{F0B79}"; // U+F0B79 Nerd Font (md-chat)
+// Session title icon: pi's own brand glyph (Herdr Agent Icons Max U+E1A9, glyph name "pi")
+// in pi's own coral #e48a7a (pi-website/src/logo.svg CORAL = rgb(228,138,122)).
+// shortcut: hardcoded to pi — pi-polish only loads inside pi; if it ever runs under
+// another agent, key this off process.env.AI_AGENT (pi sets it to "pi").
+const AGENT_ICON = "\ue1a9";
+const AGENT_COLOR: Rgb = [228, 138, 122];
 const DISK = "\uf1c0"; // U+F1C0 Nerd Font (FontAwesome)
 const THINKING = "\uec10"; // U+EC10 Nerd Font (cod-sparkle)
 const SOLID = "\u2588"; // U+2588 solid fill block
@@ -176,7 +181,9 @@ function build(footer: any, width: number): string[] {
 	}
 
 	// Line 2: [气泡图标 会话标题] | [Git分支图标 分支名]
-	const titlePart = sessionName ? `${fg(TITLE_COLOR)}${COMMENT} ${sessionName}${RESET}` : "";
+	const titlePart = sessionName
+		? `${fg(AGENT_COLOR)}${AGENT_ICON} ${fg(TITLE_COLOR)}${sessionName}${RESET}`
+		: "";
 	const gitPart = branch ? `${fg(BRANCH_COLOR)}${BRANCH_ICON} ${branch}${RESET}` : "";
 
 	let line2 = "";
