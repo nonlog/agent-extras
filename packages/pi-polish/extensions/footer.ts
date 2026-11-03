@@ -13,12 +13,6 @@ const fg = (c: Rgb) => `\x1b[22;1;38;2;${c[0]};${c[1]};${c[2]}m`;
 // Unicode Icons (Nerd Font & standard Block Elements)
 const FOLDER = "\uf07b"; // U+F07B Nerd Font (FontAwesome)
 const BRANCH_ICON = "\ue725"; // U+E725 Nerd Font (devicons)
-// Session title icon: pi's own brand glyph (Herdr Agent Icons Max U+E1A9, glyph name "pi")
-// in pi's own coral #e48a7a (pi-website/src/logo.svg CORAL = rgb(228,138,122)).
-// shortcut: hardcoded to pi — pi-polish only loads inside pi; if it ever runs under
-// another agent, key this off process.env.AI_AGENT (pi sets it to "pi").
-const AGENT_ICON = "\ue1a9";
-const AGENT_COLOR: Rgb = [228, 138, 122];
 const DISK = "\uf1c0"; // U+F1C0 Nerd Font (FontAwesome)
 const THINKING = "\uec10"; // U+EC10 Nerd Font (cod-sparkle)
 const SOLID = "\u2588"; // U+2588 solid fill block
@@ -26,7 +20,13 @@ const SHADE = "\u2592"; // U+2592 medium shade block
 
 // Functional Palette (ANSI 256 / 24-bit Truecolor)
 const CWD_COLOR: Rgb = [215, 175, 0]; // #d7af00 (ANSI 178) warm gold
-const TITLE_COLOR: Rgb = [135, 175, 215]; // #87afd7 (ANSI 110) soft steel blue
+// Session title: pi's own brand glyph (Herdr Agent Icons Max U+E1A9, glyph name "pi") and the
+// title share one color, pi.dev's accent blue #6a9fcc (--color-accent-blue / --accent in
+// https://pi.dev/style.css), the same blue the site uses for links and the "yours" highlight.
+// shortcut: hardcoded to pi — pi-polish only loads inside pi; if it ever runs under another
+// agent, key this off process.env.AI_AGENT (pi sets it to "pi").
+const AGENT_ICON = "\ue1a9";
+const AGENT_COLOR: Rgb = [106, 159, 204]; // #6a9fcc
 const BRANCH_COLOR: Rgb = [175, 255, 95]; // #afff5f (ANSI 155) vibrant light green
 const SEP_COLOR: Rgb = [95, 95, 95]; // #5f5f5f (ANSI 59) low-contrast neutral gray
 
@@ -182,7 +182,7 @@ function build(footer: any, width: number): string[] {
 
 	// Line 2: [气泡图标 会话标题] | [Git分支图标 分支名]
 	const titlePart = sessionName
-		? `${fg(AGENT_COLOR)}${AGENT_ICON} ${fg(TITLE_COLOR)}${sessionName}${RESET}`
+		? `${fg(AGENT_COLOR)}${AGENT_ICON} ${sessionName}${RESET}`
 		: "";
 	const gitPart = branch ? `${fg(BRANCH_COLOR)}${BRANCH_ICON} ${branch}${RESET}` : "";
 
