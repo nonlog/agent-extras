@@ -70,11 +70,11 @@ const STACKS: Stack[] = [
 	{ icon: "\ue798", rgb: [1, 117, 194], file: ["pubspec.yaml"], ext: [".dart"] },
 	{ icon: "\ue739", rgb: [204, 52, 45], file: ["gemfile"], ext: [".rb"] },
 	{ icon: "\ue73d", rgb: [119, 123, 180], file: ["composer.json"], ext: [".php"] },
-	{ icon: "\uf0844", rgb: [79, 192, 141], file: ["vue.config.js"], ext: [".vue"] },
+	{ icon: "\u{F0844}", rgb: [79, 192, 141], file: ["vue.config.js"], ext: [".vue"] },
 	{ icon: "\ue736", rgb: [227, 79, 38], file: ["index.html"], ext: [".html"] },
 	{ icon: "\uf308", rgb: [36, 150, 237], file: ["dockerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml"], ext: [] },
 	{ icon: "\uf489", rgb: [137, 224, 81], file: [], ext: [".sh", ".bash"] },
-	{ icon: "\uf0a0a", rgb: [83, 145, 254], file: [], ext: [".ps1", ".psm1"] },
+	{ icon: "\u{F0A0A}", rgb: [83, 145, 254], file: [], ext: [".ps1", ".psm1"] },
 ];
 
 // Sources live in standard roots, not next to the manifest: an Android module's .kt files sit under
