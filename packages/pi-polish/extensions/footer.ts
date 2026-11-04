@@ -61,10 +61,7 @@ const LEVEL_COLORS: Record<string, Rgb> = {
 	max: [192, 132, 252], // #c084fc
 };
 
-const patched = Symbol.for("pi-polish.footer");
-
-let reportedFailure = false;
-function reportFailure(err: unknown): void {
+let reportedFailure = false;function reportFailure(err: unknown): void {
 	if (reportedFailure) return;
 	reportedFailure = true;
 	try {
@@ -149,8 +146,6 @@ function renderBar(cells: number, percent: number, color: Rgb): string {
 
 const SUCCESS_COLOR: Rgb = [74, 222, 128]; // #4ade80
 const WARNING_COLOR: Rgb = [251, 191, 36]; // #fbbf24
-const ERROR_COLOR: Rgb = [248, 113, 113]; // #f87171
-const MUTED_COLOR: Rgb = [107, 114, 128]; // #6b7280
 
 interface RuntimeDef {
 	name: string;
@@ -237,23 +232,18 @@ const RUNTIME_ICONS: Record<string, string> = {
 	terraform: "\ue1a5",
 };
 
+// Only the divergence from the upstream is tracked: the counts are recomputed from the
+// `## branch...upstream [ahead N, behind M]` line of `git status --porcelain=v1 --branch`,
+// which is one process and needs no extra call for a file tally.
 interface GitStatus {
-	modified: number;
-	untracked: number;
-	staged: number;
-	stashed: number;
-	conflicted: number;
-	renamed: number;
-	deleted: number;
 	ahead: number;
 	behind: number;
 }
 
-const NO_GIT: GitStatus = { modified: 0, untracked: 0, staged: 0, stashed: 0, conflicted: 0, renamed: 0, deleted: 0, ahead: 0, behind: 0 };
+const NO_GIT: GitStatus = { ahead: 0, behind: 0 };
 
 const RUNTIME_TTL_MS = 30_000;
 const GIT_TTL_MS = 5_000;
-
 let runtimeCache: { cwd: string; at: number; name: string | null } | null = null;
 let gitCache: { cwd: string; at: number; status: GitStatus } | null = null;
 let gitBusy = false;
@@ -275,31 +265,16 @@ function runtimeFor(cwd: string): string | null {
 function parseGitStatus(out: string): GitStatus {
 	const status: GitStatus = { ...NO_GIT };
 	for (const line of out.split("\n")) {
-		if (line.startsWith("## ")) {
-			const rest = line.slice(3);
-			if (!rest.startsWith("HEAD (no branch)")) {
-				const m = /^\S+?\.\.\.\S+?(?:\s+\[(.*)\])?$/.exec(rest);
-				const ahead = m?.[1]?.match(/\bahead (\d+)\b/);
-				const behind = m?.[1]?.match(/\bbehind (\d+)\b/);
-				if (ahead) status.ahead = Number(ahead[1]);
-				if (behind) status.behind = Number(behind[1]);
-			}
-			continue;
-		}
-		if (line.length < 3) continue;
-		const x = line[0];
-		const y = line[1];
-		if (x === "U" || y === "U" || (x === "A" && y === "A") || (x === "D" && y === "D")) status.conflicted++;
-		else if (x === "?" && y === "?") status.untracked++;
-		else if (x === "R") {
-			status.renamed++;
-			if (y === "M") status.modified++;
-			else if (y === "D") status.deleted++;
-		} else if (x === "D" || y === "D") status.deleted++;
-		else {
-			if (x !== " " && x !== "?") status.staged++;
-			if (y === "M" || y === "D") status.modified++;
-		}
+		if (!line.startsWith("## ")) continue;
+		const rest = line.slice(3);
+		// Detached HEAD has no upstream to compare against.
+		if (rest.startsWith("HEAD (no branch)")) continue;
+		const m = /^\S+?\.\.\.\S+?(?:\s+\[(.*)\])?$/.exec(rest);
+		const ahead = m?.[1]?.match(/\bahead (\d+)\b/);
+		const behind = m?.[1]?.match(/\bbehind (\d+)\b/);
+		if (ahead) status.ahead = Number(ahead[1]);
+		if (behind) status.behind = Number(behind[1]);
+		break;
 	}
 	return status;
 }
@@ -307,12 +282,8 @@ function parseGitStatus(out: string): GitStatus {
 function refreshGit(cwd: string): void {
 	gitBusy = true;
 	execFile("git", ["--no-optional-locks", "status", "--porcelain=v1", "--branch"], { cwd, timeout: 4000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
-		const status = err ? { ...NO_GIT } : parseGitStatus(String(stdout));
-		execFile("git", ["--no-optional-locks", "stash", "list", "--format=%H"], { cwd, timeout: 4000, windowsHide: true, maxBuffer: 1024 * 1024 }, (stashErr, stashOut) => {
-			gitBusy = false;
-			if (!stashErr) status.stashed = String(stashOut).split("\n").filter((l) => l.trim() !== "").length;
-			gitCache = { cwd, at: Date.now(), status };
-		});
+		gitBusy = false;
+		gitCache = { cwd, at: Date.now(), status: err ? { ...NO_GIT } : parseGitStatus(String(stdout)) };
 	});
 }
 
@@ -323,23 +294,12 @@ function gitFor(cwd: string): GitStatus {
 	return gitCache && gitCache.cwd === cwd ? gitCache.status : NO_GIT;
 }
 
-/** `[!1 x2 +1 ?3 $1 ↑2 ↓1]` — counts only, wrapped in dim brackets like pi-open-tui. */
+/** `[↑2]`, `[↓1]`, `[↕2/1]` — divergence from the upstream only, nothing when level. */
 function gitStatusText(g: GitStatus): string {
-	const parts: string[] = [];
-	const add = (n: number, glyph: string, color: Rgb) => {
-		if (n > 0) parts.push(`${fg(color)}${glyph}${n}${RESET}`);
-	};
-	add(g.conflicted, "=", ERROR_COLOR);
-	add(g.deleted, "\uf00d", ERROR_COLOR); // U+F00D fa-times; U+2718 (open-tui's ✘) is absent from CaskaydiaCove NF
-	add(g.modified, "!", WARNING_COLOR);
-	add(g.renamed, "\u00bb", WARNING_COLOR);
-	add(g.staged, "+", SUCCESS_COLOR);
-	add(g.untracked, "?", MUTED_COLOR);
-	add(g.stashed, "$", MUTED_COLOR);
-	if (g.ahead > 0 && g.behind > 0) parts.push(`${fg(WARNING_COLOR)}\u2195${g.ahead}/${g.behind}${RESET}`); // U+2195; U+21D5 is absent
-	else if (g.ahead > 0) parts.push(`${fg(SUCCESS_COLOR)}\u2191${g.ahead}${RESET}`);
-	else if (g.behind > 0) parts.push(`${fg(WARNING_COLOR)}\u2193${g.behind}${RESET}`);
-	return parts.length > 0 ? `${fg(SEP_COLOR)}[${RESET}${parts.join(" ")}${fg(SEP_COLOR)}]${RESET}` : "";
+	if (g.ahead > 0 && g.behind > 0) return `${fg(SEP_COLOR)}[${RESET}${fg(WARNING_COLOR)}\u2195${g.ahead}/${g.behind}${RESET}${fg(SEP_COLOR)}]${RESET}`;
+	if (g.ahead > 0) return `${fg(SEP_COLOR)}[${RESET}${fg(SUCCESS_COLOR)}\u2191${g.ahead}${RESET}${fg(SEP_COLOR)}]${RESET}`;
+	if (g.behind > 0) return `${fg(SEP_COLOR)}[${RESET}${fg(WARNING_COLOR)}\u2193${g.behind}${RESET}${fg(SEP_COLOR)}]${RESET}`;
+	return "";
 }
 
 function runtimeText(name: string | null): string {
@@ -426,8 +386,15 @@ function build(footer: any, width: number): string[] {
 export default function (_pi: ExtensionAPI) {
 	try {
 		const proto: any = FooterComponent.prototype;
-		if (typeof proto.render !== "function" || proto.render[patched]) return;
-		const original = proto.render;
+		if (typeof proto.render !== "function") return;
+		// pi re-imports the extension module on /reload with a fresh module cache, so this
+		// runs again on every reload. Keying the guard on a global symbol would then see the
+		// previous patch and bail out, leaving the OLD closure installed — which is why edits
+		// only took effect after a full restart. Instead the true original is captured once on
+		// the prototype and the latest replacement is always installed.
+		const originalKey = Symbol.for("pi-polish.footer.original");
+		if (proto[originalKey] === undefined) proto[originalKey] = proto.render;
+		const original = proto[originalKey];
 		const replacement: any = function (this: any, width: number) {
 			try {
 				return build(this, width);
@@ -436,7 +403,6 @@ export default function (_pi: ExtensionAPI) {
 				return original.call(this, width);
 			}
 		};
-		replacement[patched] = true;
 		proto.render = replacement;
 	} catch (err) {
 		console.error(`[pi-polish] could not patch the footer: ${(err as Error).message}`);
