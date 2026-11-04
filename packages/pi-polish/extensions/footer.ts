@@ -157,34 +157,33 @@ interface RuntimeDef {
 	files: readonly string[];
 	folders?: readonly string[];
 	env?: string;
-	versionCommand?: { cmd: string; args?: string[]; pattern?: RegExp };
 }
 
 // Detection order is significant: the first match wins, so a bun lockfile beats
 // the package.json that usually sits next to it.
 const RUNTIMES: readonly RuntimeDef[] = [
-	{ name: "bun", files: ["bun.lock", "bun.lockb"], versionCommand: { cmd: "bun", args: ["--version"], pattern: /(\d+\.\d+\.\d+)/ } },
-	{ name: "nodejs", files: ["package.json", ".nvmrc", ".node-version"], versionCommand: { cmd: "node", args: ["--version"], pattern: /v(\d+\.\d+\.\d+)/ } },
-	{ name: "rust", files: ["Cargo.toml"], versionCommand: { cmd: "rustc", args: ["--version"], pattern: /rustc\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "go", files: ["go.mod"], versionCommand: { cmd: "go", args: ["version"], pattern: /go(\d+\.\d+\.\d+)/ } },
-	{ name: "python", files: ["pyproject.toml", "requirements.txt", "setup.py", "Pipfile", ".python-version"], versionCommand: { cmd: "python3", args: ["--version"], pattern: /Python\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "ruby", files: ["Gemfile", ".ruby-version"], versionCommand: { cmd: "ruby", args: ["--version"], pattern: /ruby\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "java", files: ["pom.xml", "build.gradle", "build.gradle.kts", ".java-version"], versionCommand: { cmd: "java", args: ["-version"], pattern: /version\s+"(\d+\.\d+[\.\d]*)"/ } },
-	{ name: "swift", files: ["Package.swift"], versionCommand: { cmd: "swift", args: ["--version"], pattern: /Swift\s+(\d+\.\d+)/ } },
+	{ name: "bun", files: ["bun.lock", "bun.lockb"] },
+	{ name: "nodejs", files: ["package.json", ".nvmrc", ".node-version"] },
+	{ name: "rust", files: ["Cargo.toml"] },
+	{ name: "go", files: ["go.mod"] },
+	{ name: "python", files: ["pyproject.toml", "requirements.txt", "setup.py", "Pipfile", ".python-version"] },
+	{ name: "ruby", files: ["Gemfile", ".ruby-version"] },
+	{ name: "java", files: ["pom.xml", "build.gradle", "build.gradle.kts", ".java-version"] },
+	{ name: "swift", files: ["Package.swift"] },
 	{ name: "kotlin", files: ["build.gradle.kts", "settings.gradle.kts"] },
 	{ name: "cpp", files: ["CMakeLists.txt", "Makefile"] },
-	{ name: "deno", files: ["deno.json", "deno.jsonc", "deno.lock"], versionCommand: { cmd: "deno", args: ["--version"], pattern: /deno\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "php", files: ["composer.json"], versionCommand: { cmd: "php", args: ["--version"], pattern: /PHP\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "haskell", files: ["stack.yaml", "cabal.project"], versionCommand: { cmd: "ghc", args: ["--version"], pattern: /(\d+\.\d+\.\d+)/ } },
-	{ name: "julia", files: ["Project.toml", "Manifest.toml"], versionCommand: { cmd: "julia", args: ["--version"], pattern: /julia\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "lua", files: ["stylua.toml", ".luarc.json"], versionCommand: { cmd: "lua", args: ["-v"], pattern: /Lua\s+(\d+\.\d+)/ } },
-	{ name: "elixir", files: ["mix.exs"], versionCommand: { cmd: "elixir", args: ["--version"], pattern: /Elixir\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "deno", files: ["deno.json", "deno.jsonc", "deno.lock"] },
+	{ name: "php", files: ["composer.json"] },
+	{ name: "haskell", files: ["stack.yaml", "cabal.project"] },
+	{ name: "julia", files: ["Project.toml", "Manifest.toml"] },
+	{ name: "lua", files: ["stylua.toml", ".luarc.json"] },
+	{ name: "elixir", files: ["mix.exs"] },
 	{ name: "erlang", files: ["rebar.config", "erlang.mk"] },
-	{ name: "gleam", files: ["gleam.toml"], versionCommand: { cmd: "gleam", args: ["--version"], pattern: /gleam\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "crystal", files: ["shard.yml"], versionCommand: { cmd: "crystal", args: ["--version"], pattern: /Crystal\s+(\d+\.\d+\.\d+)/ } },
-	{ name: "dart", files: ["pubspec.yaml"], versionCommand: { cmd: "dart", args: ["--version"], pattern: /Dart\s+SDK\s+version:\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "gleam", files: ["gleam.toml"] },
+	{ name: "crystal", files: ["shard.yml"] },
+	{ name: "dart", files: ["pubspec.yaml"] },
 	{ name: "nim", files: ["nim.cfg"] },
-	{ name: "zig", files: ["build.zig"], versionCommand: { cmd: "zig", args: ["version"], pattern: /(\d+\.\d+\.\d+)/ } },
+	{ name: "zig", files: ["build.zig"] },
 	{ name: "ocaml", files: ["dune", "dune-project"] },
 	{ name: "clojure", files: ["project.clj", "deps.edn"] },
 	{ name: "scala", files: ["build.sbt", ".metals"] },
@@ -255,8 +254,7 @@ const NO_GIT: GitStatus = { modified: 0, untracked: 0, staged: 0, stashed: 0, co
 const RUNTIME_TTL_MS = 30_000;
 const GIT_TTL_MS = 5_000;
 
-let runtimeCache: { cwd: string; at: number; info: { name: string; version?: string } | null } | null = null;
-let runtimeBusy = false;
+let runtimeCache: { cwd: string; at: number; name: string | null } | null = null;
 let gitCache: { cwd: string; at: number; status: GitStatus } | null = null;
 let gitBusy = false;
 
@@ -266,33 +264,12 @@ function matchesRuntime(cwd: string, def: RuntimeDef): boolean {
 	return def.folders?.some((f) => existsSync(join(cwd, f))) ?? false;
 }
 
-function refreshRuntime(cwd: string): void {
-	const def = RUNTIMES.find((d) => matchesRuntime(cwd, d));
-	if (!def) {
-		runtimeCache = { cwd, at: Date.now(), info: null };
-		return;
-	}
-	const cmd = def.versionCommand;
-	if (!cmd) {
-		runtimeCache = { cwd, at: Date.now(), info: { name: def.name } };
-		return;
-	}
-	runtimeBusy = true;
-	// java prints its version on stderr, so both streams are matched.
-	execFile(cmd.cmd, cmd.args ?? [], { cwd, timeout: 2500, windowsHide: true, maxBuffer: 64 * 1024 }, (err, stdout, stderr) => {
-		runtimeBusy = false;
-		const output = `${stdout}\n${stderr}`;
-		const matched = cmd.pattern?.exec(output)?.[1];
-		const version = err && !output.trim() ? undefined : (matched ?? output.trim()) || undefined;
-		runtimeCache = { cwd, at: Date.now(), info: { name: def.name, version } };
-	});
-}
-
-function runtimeFor(cwd: string): { name: string; version?: string } | null {
+function runtimeFor(cwd: string): string | null {
 	const now = Date.now();
-	const fresh = runtimeCache && runtimeCache.cwd === cwd && now - runtimeCache.at < RUNTIME_TTL_MS;
-	if (!fresh && !runtimeBusy) refreshRuntime(cwd);
-	return runtimeCache && runtimeCache.cwd === cwd ? runtimeCache.info : null;
+	if (!runtimeCache || runtimeCache.cwd !== cwd || now - runtimeCache.at >= RUNTIME_TTL_MS) {
+		runtimeCache = { cwd, at: now, name: RUNTIMES.find((d) => matchesRuntime(cwd, d))?.name ?? null };
+	}
+	return runtimeCache.cwd === cwd ? runtimeCache.name : null;
 }
 
 function parseGitStatus(out: string): GitStatus {
@@ -365,10 +342,9 @@ function gitStatusText(g: GitStatus): string {
 	return parts.length > 0 ? `${fg(SEP_COLOR)}[${RESET}${parts.join(" ")}${fg(SEP_COLOR)}]${RESET}` : "";
 }
 
-function runtimeText(runtime: { name: string; version?: string } | null): string {
-	if (!runtime) return "";
-	const icon = `${fg(SUCCESS_COLOR)}${RUNTIME_ICONS[runtime.name] ?? "\uf120"}${RESET}`;
-	return runtime.version ? `${icon} ${fg(MUTED_COLOR)}${runtime.version}${RESET}` : icon;
+function runtimeText(name: string | null): string {
+	if (!name) return "";
+	return `${fg(SUCCESS_COLOR)}${RUNTIME_ICONS[name] ?? "\uf120"}${RESET}`;
 }
 
 function build(footer: any, width: number): string[] {
