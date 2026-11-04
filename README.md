@@ -31,16 +31,19 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 
 ```
  D:\Workspace\General |  DeepSeek V4.1 Flash  high |  [████████████▒▒▒▒] 300k/400k
-󰭹 Verify Droid skills and MCP setup |  main
+󰭹 Verify Droid skills and MCP setup |  main [!1 ↑2]  24.22.1
 ```
 
 - Line 1: `[cwd] | [model + thinking] | [context bar + tokens]`
   - Folder icon `` and full cwd path in warm gold `#d7af00`.
   - Brand logo and model name in official brand color, followed by `` and thinking level in Tailwind-styled effort color (supports `dynamic`).
   - Storage icon ``, 16-cell context bar `[████▒▒▒▒]` with smooth LERP color interpolation (green → amber → danger red), and token usage `used/limit`.
-- Line 2: `[session title] | [git branch]`
+- Line 2: `[session title] | [git branch + status] [runtime]`
   - Session title icon ``, pi's own brand glyph (Herdr Agent Icons Max `U+E1A9`, glyph name `pi`) and the title itself share one color: pi.dev's accent blue `#6a9fcc` (`--color-accent-blue` / `--accent` in [pi.dev/style.css](https://pi.dev/style.css)), the same blue the site uses for links and the "yours" highlight.
   - Git branch icon `` with branch name in vibrant light green `#afff5f`.
+  - **Git status** in dim brackets, counts only, ported from [pi-open-tui](https://www.npmjs.com/package/pi-open-tui)'s `git.ts`: `=n` conflicted, `✗n` deleted, `!n` modified, `»n` renamed, `+n` staged, `?n` untracked, `$n` stashed, `↑n` ahead, `↓n` behind, `⇕a/b` diverged. Colored error / warning / success / muted by kind.
+  - **Runtime** devicon plus version (` 24.22.1`), from the detection table ported from pi-open-tui's `runtime.ts`: bun, node, rust, go, python, ruby, java, swift, kotlin, cpp, deno, php, haskell, julia, lua, elixir, erlang, gleam, crystal, dart, nim, zig, ocaml, clojure, scala, perl, elm, haxe, terraform, helm, gradle, cmake, meson, nix, conda, pixi, pulumi, typst, buf, dotnet. First match wins, so a `bun.lock` beats the `package.json` beside it.
+- Git status and runtime each spawn a process, so neither runs inside `render`: the cached value is drawn and a background refresh starts when it goes stale (git 5 s, runtime 30 s). pi re-renders on keystrokes and streamed output, so the value is fresh while working; while idle it can sit one refresh behind, and the first frame after a cwd change shows the branch and title only.
 - Separators ` | ` in low-contrast neutral gray `#5f5f5f`.
 - All text styles prefixed with `\x1b[22;1;` (cancels dim, enables bold highlight).
 - Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.

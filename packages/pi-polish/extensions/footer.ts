@@ -1,4 +1,5 @@
-import { appendFileSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { appendFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { type ExtensionAPI, FooterComponent } from "@earendil-works/pi-coding-agent";
@@ -135,6 +136,241 @@ function renderBar(cells: number, percent: number, color: Rgb): string {
 	return `${fg(SEP_COLOR)}[${RESET}${barFilled}${barEmpty}${fg(SEP_COLOR)}]${RESET}`;
 }
 
+// ---------------------------------------------------------------------------
+// Runtime + git status, ported from pi-open-tui (extensions/open-tui/runtime.ts
+// and git.ts) so the footer carries the same information it used to show.
+// Both spawn processes, so neither runs inside render: a cached value is drawn
+// and a background refresh is kicked off when it goes stale.
+// shortcut: the drawn value is one render behind the refresh. pi re-renders on
+// keystrokes and streamed output, so it is fresh while working but can sit stale
+// while idle. Upgrade by registering ctx.ui.setFooter and calling tui.requestRender
+// from the refresh callback if a live idle update is ever needed.
+// ---------------------------------------------------------------------------
+
+const SUCCESS_COLOR: Rgb = [74, 222, 128]; // #4ade80
+const WARNING_COLOR: Rgb = [251, 191, 36]; // #fbbf24
+const ERROR_COLOR: Rgb = [248, 113, 113]; // #f87171
+const MUTED_COLOR: Rgb = [107, 114, 128]; // #6b7280
+
+interface RuntimeDef {
+	name: string;
+	files: readonly string[];
+	folders?: readonly string[];
+	env?: string;
+	versionCommand?: { cmd: string; args?: string[]; pattern?: RegExp };
+}
+
+// Detection order is significant: the first match wins, so a bun lockfile beats
+// the package.json that usually sits next to it.
+const RUNTIMES: readonly RuntimeDef[] = [
+	{ name: "bun", files: ["bun.lock", "bun.lockb"], versionCommand: { cmd: "bun", args: ["--version"], pattern: /(\d+\.\d+\.\d+)/ } },
+	{ name: "nodejs", files: ["package.json", ".nvmrc", ".node-version"], versionCommand: { cmd: "node", args: ["--version"], pattern: /v(\d+\.\d+\.\d+)/ } },
+	{ name: "rust", files: ["Cargo.toml"], versionCommand: { cmd: "rustc", args: ["--version"], pattern: /rustc\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "go", files: ["go.mod"], versionCommand: { cmd: "go", args: ["version"], pattern: /go(\d+\.\d+\.\d+)/ } },
+	{ name: "python", files: ["pyproject.toml", "requirements.txt", "setup.py", "Pipfile", ".python-version"], versionCommand: { cmd: "python3", args: ["--version"], pattern: /Python\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "ruby", files: ["Gemfile", ".ruby-version"], versionCommand: { cmd: "ruby", args: ["--version"], pattern: /ruby\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "java", files: ["pom.xml", "build.gradle", "build.gradle.kts", ".java-version"], versionCommand: { cmd: "java", args: ["-version"], pattern: /version\s+"(\d+\.\d+[\.\d]*)"/ } },
+	{ name: "swift", files: ["Package.swift"], versionCommand: { cmd: "swift", args: ["--version"], pattern: /Swift\s+(\d+\.\d+)/ } },
+	{ name: "kotlin", files: ["build.gradle.kts", "settings.gradle.kts"] },
+	{ name: "cpp", files: ["CMakeLists.txt", "Makefile"] },
+	{ name: "deno", files: ["deno.json", "deno.jsonc", "deno.lock"], versionCommand: { cmd: "deno", args: ["--version"], pattern: /deno\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "php", files: ["composer.json"], versionCommand: { cmd: "php", args: ["--version"], pattern: /PHP\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "haskell", files: ["stack.yaml", "cabal.project"], versionCommand: { cmd: "ghc", args: ["--version"], pattern: /(\d+\.\d+\.\d+)/ } },
+	{ name: "julia", files: ["Project.toml", "Manifest.toml"], versionCommand: { cmd: "julia", args: ["--version"], pattern: /julia\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "lua", files: ["stylua.toml", ".luarc.json"], versionCommand: { cmd: "lua", args: ["-v"], pattern: /Lua\s+(\d+\.\d+)/ } },
+	{ name: "elixir", files: ["mix.exs"], versionCommand: { cmd: "elixir", args: ["--version"], pattern: /Elixir\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "erlang", files: ["rebar.config", "erlang.mk"] },
+	{ name: "gleam", files: ["gleam.toml"], versionCommand: { cmd: "gleam", args: ["--version"], pattern: /gleam\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "crystal", files: ["shard.yml"], versionCommand: { cmd: "crystal", args: ["--version"], pattern: /Crystal\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "dart", files: ["pubspec.yaml"], versionCommand: { cmd: "dart", args: ["--version"], pattern: /Dart\s+SDK\s+version:\s+(\d+\.\d+\.\d+)/ } },
+	{ name: "nim", files: ["nim.cfg"] },
+	{ name: "zig", files: ["build.zig"], versionCommand: { cmd: "zig", args: ["version"], pattern: /(\d+\.\d+\.\d+)/ } },
+	{ name: "ocaml", files: ["dune", "dune-project"] },
+	{ name: "clojure", files: ["project.clj", "deps.edn"] },
+	{ name: "scala", files: ["build.sbt", ".metals"] },
+	{ name: "perl", files: ["Makefile.PL", "cpanfile"] },
+	{ name: "elm", files: ["elm.json"] },
+	{ name: "haxe", files: ["haxelib.json", ".haxerc"] },
+	{ name: "terraform", files: ["main.tf", "variables.tf"], folders: [".terraform"] },
+	{ name: "helm", files: ["Chart.yaml", "helmfile.yaml"] },
+	{ name: "gradle", files: ["build.gradle", "build.gradle.kts"], folders: ["gradle"] },
+	{ name: "cmake", files: ["CMakeLists.txt", "CMakeCache.txt"] },
+	{ name: "meson", files: ["meson.build"], env: "MESON_DEVENV" },
+	{ name: "nix", files: ["flake.nix", "shell.nix"], env: "IN_NIX_SHELL" },
+	{ name: "conda", files: [], env: "CONDA_DEFAULT_ENV" },
+	{ name: "pixi", files: ["pixi.toml", "pixi.lock"], env: "PIXI_ENVIRONMENT_NAME" },
+	{ name: "pulumi", files: ["Pulumi.yaml", "Pulumi.yml"] },
+	{ name: "typst", files: ["template.typ"] },
+	{ name: "buf", files: ["buf.yaml", "buf.gen.yaml", "buf.work.yaml"] },
+	{ name: "dotnet", files: ["global.json", "Directory.Build.props"] },
+];
+
+// Nerd Font devicons, same codepoints pi-open-tui uses.
+const RUNTIME_ICONS: Record<string, string> = {
+	nodejs: "\ue718",
+	rust: "\ue7a8",
+	go: "\ue626",
+	python: "\ue73c",
+	ruby: "\ue739",
+	java: "\ue256",
+	cpp: "\ue61d",
+	swift: "\ue755",
+	kotlin: "\ue634",
+	deno: "\ue7fb",
+	bun: "\ue76f",
+	php: "\ue73d",
+	haskell: "\ue777",
+	julia: "\ue624",
+	lua: "\ue620",
+	elixir: "\ue62b",
+	erlang: "\ue7b1",
+	gleam: "\ue6b4",
+	crystal: "\ue62f",
+	dart: "\ue7c0",
+	nim: "\ue677",
+	zig: "\ue6a9",
+	ocaml: "\ue67a",
+	clojure: "\ue76a",
+	scala: "\ue747",
+	perl: "\ue769",
+	elm: "\ue62c",
+	haxe: "\ue7b7",
+	terraform: "\ue1a5",
+};
+
+interface GitStatus {
+	modified: number;
+	untracked: number;
+	staged: number;
+	stashed: number;
+	conflicted: number;
+	renamed: number;
+	deleted: number;
+	ahead: number;
+	behind: number;
+}
+
+const NO_GIT: GitStatus = { modified: 0, untracked: 0, staged: 0, stashed: 0, conflicted: 0, renamed: 0, deleted: 0, ahead: 0, behind: 0 };
+
+const RUNTIME_TTL_MS = 30_000;
+const GIT_TTL_MS = 5_000;
+
+let runtimeCache: { cwd: string; at: number; info: { name: string; version?: string } | null } | null = null;
+let runtimeBusy = false;
+let gitCache: { cwd: string; at: number; status: GitStatus } | null = null;
+let gitBusy = false;
+
+function matchesRuntime(cwd: string, def: RuntimeDef): boolean {
+	if (def.env && process.env[def.env]) return true;
+	if (def.files.some((f) => existsSync(join(cwd, f)))) return true;
+	return def.folders?.some((f) => existsSync(join(cwd, f))) ?? false;
+}
+
+function refreshRuntime(cwd: string): void {
+	const def = RUNTIMES.find((d) => matchesRuntime(cwd, d));
+	if (!def) {
+		runtimeCache = { cwd, at: Date.now(), info: null };
+		return;
+	}
+	const cmd = def.versionCommand;
+	if (!cmd) {
+		runtimeCache = { cwd, at: Date.now(), info: { name: def.name } };
+		return;
+	}
+	runtimeBusy = true;
+	// java prints its version on stderr, so both streams are matched.
+	execFile(cmd.cmd, cmd.args ?? [], { cwd, timeout: 2500, windowsHide: true, maxBuffer: 64 * 1024 }, (err, stdout, stderr) => {
+		runtimeBusy = false;
+		const output = `${stdout}\n${stderr}`;
+		const matched = cmd.pattern?.exec(output)?.[1];
+		const version = err && !output.trim() ? undefined : (matched ?? output.trim()) || undefined;
+		runtimeCache = { cwd, at: Date.now(), info: { name: def.name, version } };
+	});
+}
+
+function runtimeFor(cwd: string): { name: string; version?: string } | null {
+	const now = Date.now();
+	const fresh = runtimeCache && runtimeCache.cwd === cwd && now - runtimeCache.at < RUNTIME_TTL_MS;
+	if (!fresh && !runtimeBusy) refreshRuntime(cwd);
+	return runtimeCache && runtimeCache.cwd === cwd ? runtimeCache.info : null;
+}
+
+function parseGitStatus(out: string): GitStatus {
+	const status: GitStatus = { ...NO_GIT };
+	for (const line of out.split("\n")) {
+		if (line.startsWith("## ")) {
+			const rest = line.slice(3);
+			if (!rest.startsWith("HEAD (no branch)")) {
+				const m = /^\S+?\.\.\.\S+?(?:\s+\[(.*)\])?$/.exec(rest);
+				const ahead = m?.[1]?.match(/\bahead (\d+)\b/);
+				const behind = m?.[1]?.match(/\bbehind (\d+)\b/);
+				if (ahead) status.ahead = Number(ahead[1]);
+				if (behind) status.behind = Number(behind[1]);
+			}
+			continue;
+		}
+		if (line.length < 3) continue;
+		const x = line[0];
+		const y = line[1];
+		if (x === "U" || y === "U" || (x === "A" && y === "A") || (x === "D" && y === "D")) status.conflicted++;
+		else if (x === "?" && y === "?") status.untracked++;
+		else if (x === "R") {
+			status.renamed++;
+			if (y === "M") status.modified++;
+			else if (y === "D") status.deleted++;
+		} else if (x === "D" || y === "D") status.deleted++;
+		else {
+			if (x !== " " && x !== "?") status.staged++;
+			if (y === "M" || y === "D") status.modified++;
+		}
+	}
+	return status;
+}
+
+function refreshGit(cwd: string): void {
+	gitBusy = true;
+	execFile("git", ["--no-optional-locks", "status", "--porcelain=v1", "--branch"], { cwd, timeout: 4000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+		const status = err ? { ...NO_GIT } : parseGitStatus(String(stdout));
+		execFile("git", ["--no-optional-locks", "stash", "list", "--format=%H"], { cwd, timeout: 4000, windowsHide: true, maxBuffer: 1024 * 1024 }, (stashErr, stashOut) => {
+			gitBusy = false;
+			if (!stashErr) status.stashed = String(stashOut).split("\n").filter((l) => l.trim() !== "").length;
+			gitCache = { cwd, at: Date.now(), status };
+		});
+	});
+}
+
+function gitFor(cwd: string): GitStatus {
+	const now = Date.now();
+	const fresh = gitCache && gitCache.cwd === cwd && now - gitCache.at < GIT_TTL_MS;
+	if (!fresh && !gitBusy) refreshGit(cwd);
+	return gitCache && gitCache.cwd === cwd ? gitCache.status : NO_GIT;
+}
+
+/** `[!1 x2 +1 ?3 $1 ↑2 ↓1]` — counts only, wrapped in dim brackets like pi-open-tui. */
+function gitStatusText(g: GitStatus): string {
+	const parts: string[] = [];
+	const add = (n: number, glyph: string, color: Rgb) => {
+		if (n > 0) parts.push(`${fg(color)}${glyph}${n}${RESET}`);
+	};
+	add(g.conflicted, "=", ERROR_COLOR);
+	add(g.deleted, "\uf00d", ERROR_COLOR); // U+F00D fa-times; U+2718 (open-tui's ✘) is absent from CaskaydiaCove NF
+	add(g.modified, "!", WARNING_COLOR);
+	add(g.renamed, "\u00bb", WARNING_COLOR);
+	add(g.staged, "+", SUCCESS_COLOR);
+	add(g.untracked, "?", MUTED_COLOR);
+	add(g.stashed, "$", MUTED_COLOR);
+	if (g.ahead > 0 && g.behind > 0) parts.push(`${fg(WARNING_COLOR)}\u2195${g.ahead}/${g.behind}${RESET}`); // U+2195; U+21D5 is absent
+	else if (g.ahead > 0) parts.push(`${fg(SUCCESS_COLOR)}\u2191${g.ahead}${RESET}`);
+	else if (g.behind > 0) parts.push(`${fg(WARNING_COLOR)}\u2193${g.behind}${RESET}`);
+	return parts.length > 0 ? `${fg(SEP_COLOR)}[${RESET}${parts.join(" ")}${fg(SEP_COLOR)}]${RESET}` : "";
+}
+
+function runtimeText(runtime: { name: string; version?: string } | null): string {
+	if (!runtime) return "";
+	const icon = `${fg(SUCCESS_COLOR)}${RUNTIME_ICONS[runtime.name] ?? "\uf120"}${RESET}`;
+	return runtime.version ? `${icon} ${fg(MUTED_COLOR)}${runtime.version}${RESET}` : icon;
+}
+
 function build(footer: any, width: number): string[] {
 	const state = footer.session.state;
 	const manager = footer.session.sessionManager;
@@ -180,29 +416,32 @@ function build(footer: any, width: number): string[] {
 		line1 = truncateToWidth(line1, width, "...");
 	}
 
-	// Line 2: [气泡图标 会话标题] | [Git分支图标 分支名]
+	// Line 2: [pi 图标 会话标题] | [分支图标 分支名] [git 状态] [运行时图标 版本]
 	const titlePart = sessionName
 		? `${fg(AGENT_COLOR)}${AGENT_ICON} ${sessionName}${RESET}`
 		: "";
 	const gitPart = branch ? `${fg(BRANCH_COLOR)}${BRANCH_ICON} ${branch}${RESET}` : "";
+	const statusPart = branch ? gitStatusText(gitFor(cwd)) : "";
+	const runtimePart = runtimeText(runtimeFor(cwd));
+	const rightBlock = [gitPart, statusPart, runtimePart].filter(Boolean).join(" ");
 
 	let line2 = "";
-	if (titlePart && gitPart) {
-		const gitWidth = visibleWidth(gitPart);
-		const availableForTitle = width - gitWidth - SEP_WIDTH;
+	if (titlePart && rightBlock) {
+		const rightWidth = visibleWidth(rightBlock);
+		const availableForTitle = width - rightWidth - SEP_WIDTH;
 		if (availableForTitle > 4) {
 			const truncatedTitle =
 				visibleWidth(titlePart) <= availableForTitle
 					? titlePart
 					: truncateToWidth(titlePart, availableForTitle, "...");
-			line2 = `${truncatedTitle}${SEP}${gitPart}`;
+			line2 = `${truncatedTitle}${SEP}${rightBlock}`;
 		} else {
-			line2 = truncateToWidth(`${titlePart}${SEP}${gitPart}`, width, "...");
+			line2 = truncateToWidth(`${titlePart}${SEP}${rightBlock}`, width, "...");
 		}
 	} else if (titlePart) {
 		line2 = truncateToWidth(titlePart, width, "...");
-	} else if (gitPart) {
-		line2 = truncateToWidth(gitPart, width, "...");
+	} else if (rightBlock) {
+		line2 = truncateToWidth(rightBlock, width, "...");
 	}
 
 	return [line1, line2];
