@@ -358,7 +358,9 @@ function build(footer: any, width: number): string[] {
 		: "";
 	const gitPart = branch ? `${fg(BRANCH_COLOR)}${BRANCH_ICON} ${branch}${RESET}` : "";
 	const statusPart = branch ? gitStatusText(gitFor(cwd)) : "";
-	const runtimePart = runtimeText(runtimeFor(cwd));
+	// Runtime is only meaningful alongside a branch: outside a git repo the separator would
+	// hang off the session title with nothing but an icon after it.
+	const runtimePart = branch ? runtimeText(runtimeFor(cwd)) : "";
 	const rightBlock = [gitPart, statusPart, runtimePart].filter(Boolean).join(" ");
 
 	let line2 = "";
