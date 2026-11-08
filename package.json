@@ -1,18 +1,18 @@
 {
-  "name": "pi-extensions",
+  "name": "agent-extras",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
   "author": "nonlog",
   "type": "module",
-  "description": "Pi extensions: patched forks of pi-polish and pi-spinner-verbs plus pi-bar-cursor, kept together so they can be installed from one source",
-  "homepage": "https://github.com/nonlog/pi-extensions#readme",
+  "description": "Extensions and scripts for coding agents: Pi extensions (patched forks of pi-polish and pi-spinner-verbs, plus pi-bar-cursor) and Claude Code / Droid CLI status bar scripts",
+  "homepage": "https://github.com/nonlog/agent-extras#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nonlog/pi-extensions.git"
+    "url": "git+https://github.com/nonlog/agent-extras.git"
   },
   "bugs": {
-    "url": "https://github.com/nonlog/pi-extensions/issues"
+    "url": "https://github.com/nonlog/agent-extras/issues"
   },
   "keywords": [
     "pi-package",

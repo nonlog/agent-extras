@@ -2,7 +2,7 @@
 'use strict';
 
 // Claude Code statusLine. Same design as ~/.factory/statusline.js (Droid) and
-// pi-extensions/packages/pi-polish/extensions/footer.ts (Pi), adapted to the
+// agent-extras/packages/pi-polish/extensions/footer.ts (Pi), adapted to the
 // Claude Code statusLine payload.
 //
 //   📁 D:\Workspace\General | <brand> DeepSeek V4.1 Flash ✦ max | 🗄 [██████▒▒▒▒▒▒▒▒▒▒] 148k/400k

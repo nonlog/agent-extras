@@ -1,12 +1,12 @@
-# pi-extensions
+# agent-extras
 
-Pi extensions kept in one place so they can be installed from a single source.
+Extensions and scripts for coding agents, kept in one place: Pi extensions (installable from a single source) and standalone status bar scripts for Claude Code and Droid CLI.
 
 ```bash
-pi install git:github.com/nonlog/pi-extensions
+pi install git:github.com/nonlog/agent-extras
 ```
 
-The root `package.json` declares every extension under `pi.extensions`, so one install brings all of them.
+The root `package.json` declares every Pi extension under `pi.extensions`, so one install brings all of them. The scripts under `packages/statuslines` are not Pi extensions and are copied by hand.
 
 ## Packages
 

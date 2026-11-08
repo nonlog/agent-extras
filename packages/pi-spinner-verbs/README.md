@@ -4,7 +4,7 @@
 
 A [pi](https://pi.dev) extension that customizes the spinner text while the LLM is working. Replace the default spinner verbs with something that has a little more personality.
 
-This is a fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) maintained in [`nonlog/pi-extensions`](https://github.com/nonlog/pi-extensions). It drops the fixed-interval rotation and picks a new verb per model turn, matching how Claude Code behaves. See [Patches](#patches).
+This is a fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) maintained in [`nonlog/agent-extras`](https://github.com/nonlog/agent-extras). It drops the fixed-interval rotation and picks a new verb per model turn, matching how Claude Code behaves. See [Patches](#patches).
 
 **Before**: "Thinking...", "Processing...", "Working..." 🥱
 
@@ -15,13 +15,13 @@ This is a fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/p
 Install the patched fork from the repository instead of npm:
 
 ```shell
-pi install git:github.com/nonlog/pi-extensions
+pi install git:github.com/nonlog/agent-extras
 ```
 
 That installs every package in this monorepo. To get only this one:
 
 ```shell
-pi install git:github.com/nonlog/pi-extensions#packages/pi-spinner-verbs
+pi install git:github.com/nonlog/agent-extras#packages/pi-spinner-verbs
 ```
 
 The extension registers automatically and on the next session start will randomly pick a theme for you.

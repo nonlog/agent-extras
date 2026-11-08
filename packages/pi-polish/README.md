@@ -5,7 +5,7 @@ Makes [Pi](https://pi.dev)'s output look like Claude Code's: tool calls fold int
 This is a **patched fork** of [`pi-polish`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) by Thomas van Dongen. Upstream is MIT licensed; this fork keeps that license and adds the patches described under [Local patches](#local-patches).
 
 ```bash
-pi install git:github.com/nonlog/pi-extensions
+pi install git:github.com/nonlog/agent-extras
 ```
 
 ## Features

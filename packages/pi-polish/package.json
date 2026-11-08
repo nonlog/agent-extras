@@ -4,9 +4,9 @@
   "license": "MIT",
   "author": "Thomas van Dongen (upstream); patched fork maintained by nonlog",
   "type": "module",
-  "homepage": "https://github.com/nonlog/pi-extensions/tree/main/packages/pi-polish#readme",
+  "homepage": "https://github.com/nonlog/agent-extras/tree/main/packages/pi-polish#readme",
   "bugs": {
-    "url": "https://github.com/nonlog/pi-extensions/issues"
+    "url": "https://github.com/nonlog/agent-extras/issues"
   },
   "files": [
     "extensions",
@@ -24,7 +24,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nonlog/pi-extensions.git",
+    "url": "git+https://github.com/nonlog/agent-extras.git",
     "directory": "packages/pi-polish"
   },
   "pi": {
