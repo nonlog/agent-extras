@@ -34,4 +34,4 @@ Droid, `~/.factory/settings.json`:
 
 ## Font requirements
 
-The terminal needs a Nerd Font plus the **Herdr Agent Icons Max** font (U+E1A0..U+E1BB) for the model brand logos. Without it the brand glyph is blank; everything else still renders.
+The terminal needs a Nerd Font plus the [**Herdr Agent Icons Max**](../../fonts/HerdrAgentIconsMax-Regular.ttf) font (`U+E1A0`–`U+E1BB`, bundled in [`fonts/`](../../fonts)) for the model and agent brand logos. Without it the brand glyph is blank; everything else still renders.

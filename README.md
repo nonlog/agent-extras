@@ -16,6 +16,7 @@ The root `package.json` declares every Pi extension under `pi.extensions`, so on
 | [`packages/pi-spinner-verbs`](./packages/pi-spinner-verbs) | Themed spinner verbs (13 packs) with `/verbs` and `/verb-status`; verbs rotate per model turn instead of on a 3-second timer | Patched fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) (MIT, Rob Howley) |
 | [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
 | [`packages/statuslines`](./packages/statuslines) | The same two-line status bar for Claude Code and Droid CLI, as standalone Node scripts (the Pi version lives in pi-polish) | nonlog |
+| [`fonts/HerdrAgentIconsMax-Regular.ttf`](./fonts/HerdrAgentIconsMax-Regular.ttf) | Private-use icon font (`U+E1A0`–`U+E1BB`) carrying the model and agent brand logos used by the status bars | [`hhdebb/herdr-radar`](https://github.com/qintmb/herdr-icon-agent-ui) ([notices](./fonts/THIRD_PARTY_NOTICES.md)) |
 
 ### pi-polish patches
 
@@ -50,7 +51,7 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 - All text styles prefixed with `\x1b[22;1;` (cancels dim, enables bold highlight).
 - Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.
 
-Model brand logos are drawn from **Herdr Agent Icons Max** (`U+E1A0`–`U+E1BB`). That font carries those codepoints and nothing else, so the terminal must list it as a fallback or every icon renders as tofu:
+Model brand logos are drawn from [**Herdr Agent Icons Max**](./fonts/HerdrAgentIconsMax-Regular.ttf) (`U+E1A0`–`U+E1BB`). Install `fonts/HerdrAgentIconsMax-Regular.ttf` and list `Herdr Agent Icons Max` as a terminal fallback — that font carries those codepoints and nothing else, so without it every icon renders as tofu:
 
 ```toml
 [terminal]
