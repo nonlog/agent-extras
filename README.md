@@ -15,6 +15,7 @@ The root `package.json` declares every extension under `pi.extensions`, so one i
 | [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line, custom two-line footer with model brand icons | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
 | [`packages/pi-spinner-verbs`](./packages/pi-spinner-verbs) | Themed spinner verbs (13 packs) with `/verbs` and `/verb-status`; verbs rotate per model turn instead of on a 3-second timer | Patched fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) (MIT, Rob Howley) |
 | [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
+| [`packages/statuslines`](./packages/statuslines) | The same two-line status bar for Claude Code and Droid CLI, as standalone Node scripts (the Pi version lives in pi-polish) | nonlog |
 
 ### pi-polish patches
 
