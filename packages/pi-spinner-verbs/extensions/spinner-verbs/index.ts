@@ -30,14 +30,20 @@ export default function (pi: ExtensionAPI) {
     return Array.isArray(data) && data.length > 0 ? data : undefined;
   }
 
-  function loadVerbs(name: string): string[] {
-    const data = JSON.parse(readFileSync(join(verbsDir, `${name}.json`), 'utf-8'));
-    const verbs = parseVerbsData(data);
-    if (!verbs) throw new Error(`Failed to parse verbs from ${name}.json`);
-    return verbs;
+  // A missing or corrupt bundled verb file must not abort session_start: report it and let
+  // callers fall back to the default spinner, as the spinnerVerbsFile branch already does.
+  function loadVerbs(name: string): string[] | undefined {
+    try {
+      const verbs = parseVerbsData(JSON.parse(readFileSync(join(verbsDir, `${name}.json`), 'utf-8')));
+      if (!verbs) console.error('Empty or invalid verbs file:', name);
+      return verbs;
+    } catch (error) {
+      console.error('Failed to load spinner verbs:', name, error);
+      return undefined;
+    }
   }
 
-  function randomVerbs(): { verbs: string[]; setName: string } {
+  function randomVerbs(): { verbs: string[] | undefined; setName: string } {
     const availableVerbs = available as string[];
     const name = availableVerbs[Math.floor(Math.random() * availableVerbs.length)]!;
     return { verbs: loadVerbs(name), setName: name };
@@ -164,7 +170,7 @@ export default function (pi: ExtensionAPI) {
 
     if (config.spinnerVerbs === RANDOM) {
       const result = randomVerbs();
-      return { verbs: result.verbs, verbSetName: result.setName };
+      return { verbs: result.verbs, verbSetName: result.verbs ? result.setName : undefined };
     }
 
     if (
@@ -173,7 +179,8 @@ export default function (pi: ExtensionAPI) {
       config.spinnerVerbs !== RANDOM &&
       available.includes(config.spinnerVerbs)
     ) {
-      return { verbs: loadVerbs(config.spinnerVerbs), verbSetName: config.spinnerVerbs };
+      const verbs = loadVerbs(config.spinnerVerbs);
+      return { verbs, verbSetName: verbs ? config.spinnerVerbs : undefined };
     }
 
     if (config.spinnerVerbsFile && config.settingsPath) {
