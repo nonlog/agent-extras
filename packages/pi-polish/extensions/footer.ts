@@ -307,6 +307,37 @@ function runtimeText(name: string | null): string {
 	return `${fg(SUCCESS_COLOR)}${RUNTIME_ICONS[name] ?? "\uf120"}${RESET}`;
 }
 
+function truncatePath(p: string, maxCols: number): string {
+	const s = String(p);
+	if (visibleWidth(s) <= maxCols) return s;
+	if (maxCols <= 1) return "…";
+	const m = /^[A-Za-z]:[\\/]/.exec(s);
+	const drive = m ? m[0] : "";
+	const budget = maxCols - visibleWidth(drive) - 1;
+	if (budget <= 0) return truncateToWidth(s, maxCols, "…");
+	const rest = s.slice(drive.length);
+	const sep = s[2] || "\\";
+	const parts = rest.split(/[\\/]/).filter(Boolean);
+	let tail = "";
+	let w = 0;
+	for (let i = parts.length - 1; i >= 0; i--) {
+		const seg = sep + parts[i];
+		const pw = visibleWidth(seg);
+		if (w + pw > budget) break;
+		tail = seg + tail;
+		w += pw;
+	}
+	if (!tail) {
+		for (const ch of Array.from(rest).reverse()) {
+			const cw = visibleWidth(ch);
+			if (w + cw > budget) break;
+			tail = ch + tail;
+			w += cw;
+		}
+	}
+	return `${drive}…${tail}`;
+}
+
 function build(footer: any, width: number): string[] {
 	const state = footer.session.state;
 	const manager = footer.session.sessionManager;
@@ -320,8 +351,6 @@ function build(footer: any, width: number): string[] {
 	const SEP_WIDTH = 3;
 
 	// Line 1: [目录图标 完整工作目录] | [品牌图标 模型显示名  思考等级] | [存储图标 16格阴影进度条 已用/上限]
-	const cwdText = `${fg(CWD_COLOR)}${FOLDER} ${cwd}${RESET}`;
-
 	const id = model?.id ?? "no-model";
 	const brand = BRANDS.find((b) => id.toLowerCase().startsWith(b.prefix)) ?? FALLBACK_BRAND;
 	let modelText = `${fg(brand.rgb)}${brand.icon} ${displayName(id)}${RESET}`;
@@ -336,16 +365,23 @@ function build(footer: any, width: number): string[] {
 	const window = usage?.contextWindow ?? model?.contextWindow ?? 0;
 	const percent = usage?.percent ?? (window > 0 ? (used / window) * 100 : 0);
 	const pressureColor = lerpPressureColor(percent);
+	const countsText = `${formatTokens(used)}/${formatTokens(window)}`;
 
-	// Adaptive bar width based on line width (16 cells default, downscales if tight)
-	const fixedWidth = visibleWidth(cwdText) + SEP_WIDTH + visibleWidth(modelText) + SEP_WIDTH + 18;
+	// Adaptive bar width based on line width (16 cells default, downscales if tight; below 4 drops bar and middle-truncates cwd)
+	const fullCwdWidth = 2 + visibleWidth(cwd);
+	const fixedWidth = fullCwdWidth + SEP_WIDTH + visibleWidth(modelText) + SEP_WIDTH + 2 + visibleWidth(countsText) + 3;
 	let cells = 16;
 	if (width < fixedWidth + 16) {
 		cells = Math.max(0, Math.floor(width - fixedWidth));
+		if (cells > 0 && cells < 4) cells = 0;
 	}
 
 	const bar = cells > 0 ? `${renderBar(cells, percent, pressureColor)} ` : "";
-	const progressText = `${fg(pressureColor)}${DISK}${RESET} ${bar}${fg(pressureColor)}${formatTokens(used)}/${formatTokens(window)}${RESET}`;
+	const progressText = `${fg(pressureColor)}${DISK}${RESET} ${bar}${fg(pressureColor)}${countsText}${RESET}`;
+	const restWidth = 2 + SEP_WIDTH + visibleWidth(modelText) + SEP_WIDTH + visibleWidth(progressText);
+	const maxCwd = Math.max(12, width - restWidth);
+	const displayCwd = visibleWidth(cwd) > maxCwd ? truncatePath(cwd, maxCwd) : cwd;
+	const cwdText = `${fg(CWD_COLOR)}${FOLDER} ${displayCwd}${RESET}`;
 
 	let line1 = `${cwdText}${SEP}${modelText}${SEP}${progressText}`;
 	if (visibleWidth(line1) > width) {

@@ -280,16 +280,107 @@ function contextColor(pct) {
   return B + '38;2;' + c[0] + ';' + c[1] + ';' + c[2] + 'm';
 }
 
-// [████████▒▒▒▒▒▒▒▒] 237k/400k — 16 cells, solid fill and medium shade.
-function contextSegment(cw) {
+function charWidth(cp) {
+  if (cp < 0x20 || (cp >= 0x7f && cp < 0xa0)) return 0;
+  if (
+    cp >= 0x1100 && (
+      cp <= 0x115f || cp === 0x2329 || cp === 0x232a ||
+      (cp >= 0x2e80 && cp <= 0x3247 && cp !== 0x303f) ||
+      (cp >= 0x3250 && cp <= 0x4dbf) ||
+      (cp >= 0x4e00 && cp <= 0xa4c6) ||
+      (cp >= 0xa960 && cp <= 0xa97c) ||
+      (cp >= 0xac00 && cp <= 0xd7a3) ||
+      (cp >= 0xf900 && cp <= 0xfaff) ||
+      (cp >= 0xfe10 && cp <= 0xfe19) ||
+      (cp >= 0xfe30 && cp <= 0xfe6b) ||
+      (cp >= 0xff01 && cp <= 0xff60) ||
+      (cp >= 0xffe0 && cp <= 0xffe6) ||
+      (cp >= 0x1f300 && cp <= 0x1faff) ||
+      (cp >= 0x20000 && cp <= 0x3fffd)
+    )
+  ) return 2;
+  return 1;
+}
+
+function visibleWidth(str) {
+  const plain = String(str).replace(/\x1b\[[0-9;]*m/g, '');
+  let w = 0;
+  for (const ch of plain) w += charWidth(ch.codePointAt(0));
+  return w;
+}
+
+function truncatePath(p, maxCols) {
+  const s = String(p);
+  if (visibleWidth(s) <= maxCols) return s;
+  if (maxCols <= 1) return '\u2026';
+  const m = /^[A-Za-z]:[\\/]/.exec(s);
+  const drive = m ? m[0] : '';
+  const budget = maxCols - visibleWidth(drive) - 1;
+  if (budget <= 0) {
+    let acc = '';
+    let w = 0;
+    for (const ch of Array.from(s).reverse()) {
+      const cw = charWidth(ch.codePointAt(0));
+      if (w + cw > maxCols - 1) break;
+      acc = ch + acc;
+      w += cw;
+    }
+    return '\u2026' + acc;
+  }
+  const rest = s.slice(drive.length);
+  const sep = s[2] || '\\';
+  const parts = rest.split(/[\\/]/).filter(Boolean);
+  let tail = '';
+  let w = 0;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const seg = sep + parts[i];
+    const pw = visibleWidth(seg);
+    if (w + pw > budget) break;
+    tail = seg + tail;
+    w += pw;
+  }
+  if (!tail) {
+    for (const ch of Array.from(rest).reverse()) {
+      const cw = charWidth(ch.codePointAt(0));
+      if (w + cw > budget) break;
+      tail = ch + tail;
+      w += cw;
+    }
+  }
+  return drive + '\u2026' + tail;
+}
+
+function termColumns() {
+  const envCols = Number(process.env.COLUMNS);
+  if (envCols > 0) return envCols;
+  if (process.stdout.columns > 0) return process.stdout.columns;
+  if (process.platform === 'win32') {
+    try {
+      const tty = require('tty');
+      const fd = fs.openSync('\\\\.\\CONOUT$', 'r+');
+      try {
+        const cols = new tty.WriteStream(fd).columns;
+        if (cols > 0) return cols;
+      } finally {
+        try { fs.closeSync(fd); } catch (_) {}
+      }
+    } catch (_) {}
+  }
+  return 0;
+}
+
+// [████████▒▒▒▒▒▒▒▒] 237k/400k — up to 16 cells, solid fill and medium shade.
+function contextSegment(cw, cells = 16) {
   const usage = contextUsage(cw);
   if (!usage) return '';
   const pct = Math.max(0, Math.min(100, (usage.used / usage.total) * 100));
-  const cells = 16;
+  const counts = fmtTokens(usage.used) + '/' + fmtTokens(usage.total);
+  if (cells <= 0) {
+    return contextColor(pct) + ICON.ctx + ' ' + counts + RESET;
+  }
   const filled = Math.round((pct / 100) * cells);
   const bar = '[' + '\u2588'.repeat(filled) + '\u2592'.repeat(cells - filled) + ']';
-  return contextColor(pct) + ICON.ctx + ' ' + bar + ' ' +
-    fmtTokens(usage.used) + '/' + fmtTokens(usage.total) + RESET;
+  return contextColor(pct) + ICON.ctx + ' ' + bar + ' ' + counts + RESET;
 }
 
 function render(j) {
@@ -304,8 +395,30 @@ function render(j) {
   const level = j.effort && j.effort.level;
   if (level) modelSeg += ' ' + fg(effortColor(level)) + ICON.effort + ' ' + level + RESET;
 
-  const cwdSeg = C.dir + ICON.folder + ' ' + cwd + RESET;
-  const ctxSeg = contextSegment(j.context_window);
+  // Reserve 4 columns of margin for footer padding/gutter, shrink the 16-cell bar first,
+  // then middle-truncate cwd (`D:\…\leaf`) so a deep path never crowds out model or tokens.
+  const cols = termColumns();
+  const width = cols > 0 ? Math.max(20, cols - 4) : 0;
+  let cells = 16;
+  let displayCwd = cwd;
+  if (width > 0) {
+    const fullCtx = contextSegment(j.context_window, 16);
+    const fullWidth = 2 + visibleWidth(cwd) + 3 + visibleWidth(modelSeg) + (fullCtx ? 3 + visibleWidth(fullCtx) : 0);
+    if (fullWidth > width) {
+      const overflow = fullWidth - width;
+      if (fullCtx) {
+        cells = Math.max(0, 16 - overflow);
+        if (cells > 0 && cells < 4) cells = 0;
+      }
+      const nextCtx = contextSegment(j.context_window, cells);
+      const restWidth = 2 + 3 + visibleWidth(modelSeg) + (nextCtx ? 3 + visibleWidth(nextCtx) : 0);
+      const maxCwd = Math.max(12, width - restWidth);
+      if (visibleWidth(cwd) > maxCwd) displayCwd = truncatePath(cwd, maxCwd);
+    }
+  }
+
+  const cwdSeg = C.dir + ICON.folder + ' ' + displayCwd + RESET;
+  const ctxSeg = contextSegment(j.context_window, cells);
   const row1 = [cwdSeg, modelSeg, ctxSeg].filter(Boolean).join(sep);
 
   // Row 2: session title | git branch
