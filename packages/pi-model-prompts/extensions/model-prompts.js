@@ -12,6 +12,10 @@ export default function modelPrompts(pi) {
     const options = event.systemPromptOptions;
     if (!options?.sections) throw new Error("pi-model-prompts requires Pi 1.5.2 or later");
     delete options.sections.vendor_model;
+    if (options.forceSystemPrompt !== undefined) {
+      // Earlier extensions may have captured our owned section in a complete prompt.
+      options.forceSystemPrompt = options.forceSystemPrompt.replace(/(?:\r?\n\r?\n|^)<vendor_model>\r?\n[\s\S]*?\r?\n<\/vendor_model>/g, "");
+    }
     if (!ctx.model) return;
 
     let source;
@@ -32,9 +36,6 @@ export default function modelPrompts(pi) {
     }
     const key = `${ctx.model.provider}/${ctx.model.id}`;
     if (!Object.hasOwn(mappings, key)) return;
-    if (options.forceSystemPrompt !== undefined) {
-      throw new Error("pi-model-prompts cannot add a section to a forced full system prompt");
-    }
     const file = mappings[key];
     if (isAbsolute(file) || win32.isAbsolute(file)) {
       throw new Error("Model prompt files must be relative to the Pi agent directory");
@@ -47,5 +48,9 @@ export default function modelPrompts(pi) {
     const prompt = readFileSync(promptPath, "utf8");
     if (!prompt.trim()) throw new Error("Selected model prompt file is empty");
     options.sections.vendor_model = prompt.replaceAll("{{model_name}}", () => ctx.model.name || ctx.model.id);
+    if (options.forceSystemPrompt !== undefined) {
+      const separator = options.forceSystemPrompt ? "\n\n" : "";
+      options.forceSystemPrompt += `${separator}<vendor_model>\n${options.sections.vendor_model}\n</vendor_model>`;
+    }
   });
 }
