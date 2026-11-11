@@ -5,7 +5,7 @@
   "license": "MIT",
   "author": "nonlog",
   "type": "module",
-  "description": "Extensions and scripts for coding agents: Pi extensions (patched forks of pi-polish and pi-spinner-verbs, plus pi-bar-cursor) and Claude Code / Droid CLI status bar scripts",
+  "description": "Extensions and scripts for coding agents: Pi UI extensions, model-specific prompt routing, and Claude Code / Droid CLI status bar scripts",
   "homepage": "https://github.com/nonlog/agent-extras#readme",
   "repository": {
     "type": "git",
@@ -26,7 +26,8 @@
       "./packages/pi-polish/extensions/chrome.ts",
       "./packages/pi-polish/extensions/footer.ts",
       "./packages/pi-bar-cursor/extensions/bar-cursor.ts",
-      "./packages/pi-spinner-verbs/extensions/spinner-verbs"
+      "./packages/pi-spinner-verbs/extensions/spinner-verbs",
+      "./packages/pi-model-prompts/extensions/model-prompts.js"
     ]
   },
   "dependencies": {
