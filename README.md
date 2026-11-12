@@ -1,12 +1,12 @@
 # agent-extras
 
-Extensions and scripts for coding agents, kept in one place: Pi extensions (installable from a single source) and standalone status bar scripts for Claude Code and Droid CLI.
+Extensions and scripts for coding agents, kept in one place: Pi extensions (installable from a single source), shared Windows 11 CLI completion/attention notifications, and standalone status bar scripts for Claude Code and Droid CLI.
 
 ```bash
 pi install git:github.com/nonlog/agent-extras
 ```
 
-The root `package.json` declares every Pi extension under `pi.extensions`, so one install brings all of them. The scripts under `packages/statuslines` are not Pi extensions and are copied by hand.
+The root `package.json` declares every Pi extension under `pi.extensions` (including `pi-auto-session-title` and the Pi adapter of `windows-cli-notify`), so one install brings all of them. Host hooks for Codex CLI, Claude Code, and Factory Droid are installed via `packages/windows-cli-notify/install.ps1`, and the scripts under `packages/statuslines` are copied by hand.
 
 ## Packages
 
@@ -16,6 +16,8 @@ The root `package.json` declares every Pi extension under `pi.extensions`, so on
 | [`packages/pi-spinner-verbs`](./packages/pi-spinner-verbs) | Themed spinner verbs (13 packs) with `/verbs` and `/verb-status`; verbs rotate per model turn instead of on a 3-second timer | Patched fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) (MIT, Rob Howley) |
 | [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
 | [`packages/pi-model-prompts`](./packages/pi-model-prompts) | Selects a local private instruction section by exact provider/model ID while retaining Pi's runtime instructions | nonlog |
+| [`packages/pi-auto-session-title`](./packages/pi-auto-session-title) | Automatically names unnamed Pi sessions from the first substantive prompt via `ctx.modelRegistry.complete()` and `pi.setSessionName()`, plus `/retitle` | nonlog |
+| [`packages/windows-cli-notify`](./packages/windows-cli-notify) | Shared Windows 11 toast notifications (completion & attention/questions) for Codex CLI, Claude Code, Factory Droid, and Pi | nonlog |
 | [`packages/statuslines`](./packages/statuslines) | The same two-line status bar for Claude Code and Droid CLI, as standalone Node scripts (the Pi version lives in pi-polish) | nonlog |
 | [`fonts/HerdrAgentIconsMax-Regular.ttf`](./fonts/HerdrAgentIconsMax-Regular.ttf) | Private-use icon font (`U+E1A0`–`U+E1BB`) carrying the model and agent brand logos used by the status bars | [`hhdebb/herdr-radar`](https://github.com/qintmb/herdr-icon-agent-ui) ([notices](./fonts/THIRD_PARTY_NOTICES.md)) |
 

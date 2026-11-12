@@ -1,11 +1,11 @@
 {
   "name": "agent-extras",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "author": "nonlog",
   "type": "module",
-  "description": "Extensions and scripts for coding agents: Pi UI extensions, model-specific prompt routing, and Claude Code / Droid CLI status bar scripts",
+  "description": "Extensions and scripts for coding agents: Pi UI/title/notification extensions, model-specific prompt routing, Windows CLI notifications, and Claude Code / Droid CLI status bar scripts",
   "homepage": "https://github.com/nonlog/agent-extras#readme",
   "repository": {
     "type": "git",
@@ -27,7 +27,9 @@
       "./packages/pi-polish/extensions/footer.ts",
       "./packages/pi-bar-cursor/extensions/bar-cursor.ts",
       "./packages/pi-spinner-verbs/extensions/spinner-verbs",
-      "./packages/pi-model-prompts/extensions/model-prompts.js"
+      "./packages/pi-model-prompts/extensions/model-prompts.js",
+      "./packages/pi-auto-session-title/extensions/auto-session-title.ts",
+      "./packages/windows-cli-notify/adapters/pi-windows-notify.ts"
     ]
   },
   "dependencies": {
