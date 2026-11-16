@@ -13,7 +13,7 @@ The root `package.json` declares every Pi extension under `pi.extensions` (inclu
 | Package | What it does | Origin |
 |---|---|---|
 | [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line, custom two-line footer with model brand icons | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
-| [`packages/pi-spinner-verbs`](./packages/pi-spinner-verbs) | Themed spinner verbs (13 packs) with `/verbs` and `/verb-status`; verbs rotate per model turn instead of on a 3-second timer | Patched fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) (MIT, Rob Howley) |
+| [`packages/pi-spinner-verbs`](./packages/pi-spinner-verbs) | Claude Code's 185 default spinner verbs plus themed packs (including 73 Breaking Bad entries), with `/verbs` and `/verb-status`; verbs rotate per model turn | Patched fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) (MIT, Rob Howley) |
 | [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
 | [`packages/pi-model-prompts`](./packages/pi-model-prompts) | Selects a local private instruction section by exact provider/model ID while retaining Pi's runtime instructions | nonlog |
 | [`packages/pi-auto-session-title`](./packages/pi-auto-session-title) | Automatically names unnamed Pi sessions from the first substantive prompt via `ctx.modelRegistry.complete()` and `pi.setSessionName()`, plus `/retitle` | nonlog |
@@ -29,6 +29,10 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 2. The status line renders the verb published by pi-spinner-verbs instead of overwriting it every second.
 3. The thinking block is left intact, so pi-open-tui's thinking peek has a label row to rewrite.
 4. `outputPad` stays at 2, which patch 1 requires.
+
+### Compact Claude Code-style UI
+
+pi-polish also gives generic MCP/extension tools compact result summaries, preserves visible errors and custom interactive UIs, and uses a crab startup logo. Tools start collapsed; `ctrl+o` expands them. For collapsed thinking with Pi's normal visibility toggle, set `"hideThinkingBlock": true` in Pi settings. See [pi-polish](./packages/pi-polish/README.md#compact-thinking) for configuration and regression tests.
 
 ### Custom footer
 
@@ -66,9 +70,9 @@ Brands with an icon: deepseek, claude, gemini, gpt, grok, glm, muse. Anything el
 
 ### pi-spinner-verbs patches
 
-One change on top of upstream `3.7.0`: verbs no longer rotate on a clock.
+Verbs rotate per model turn instead of on a clock, and Claude Code's default list is prepended to the selected theme or custom file.
 
-Upstream ran `setInterval(tick, 3000)`, so the word changed every 3 seconds regardless of what the agent was doing. This fork picks a verb on `turn_start` and holds it for the whole turn — the same way Claude Code behaves, where a long single thought keeps one word and the word changes when the work moves on. There is no timer at all; `/verbs (default)` and `/verb-status` now track the active verb list instead of the interval handle.
+Upstream ran `setInterval(tick, 3000)`, so the word changed every 3 seconds regardless of what the agent was doing. This fork picks a verb on `turn_start` and holds it for the whole turn — the same way Claude Code behaves, where a long single thought keeps one word and the word changes when the work moves on. There is no timer at all; `/verbs (default)` selects the 185-verb Claude Code base and `/verb-status` reports the combined pool. The configured Breaking Bad theme adds 73 entries for 258 verbs total.
 
 ### pi-bar-cursor patches
 

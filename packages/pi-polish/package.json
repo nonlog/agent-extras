@@ -1,6 +1,6 @@
 {
   "name": "pi-polish",
-  "version": "0.1.2-patched.1",
+  "version": "0.1.2-patched.2",
   "license": "MIT",
   "author": "Thomas van Dongen (upstream); patched fork maintained by nonlog",
   "type": "module",
@@ -31,7 +31,8 @@
     "extensions": [
       "./extensions/tools.ts",
       "./extensions/chrome.ts",
-      "./extensions/footer.ts"
+      "./extensions/footer.ts",
+      "./extensions/header.ts"
     ],
     "image": "https://raw.githubusercontent.com/Pringled/pi-extensions/main/assets/images/pi-polish-dark.gif"
   },

@@ -24,12 +24,13 @@ That installs every package in this monorepo. To get only this one:
 pi install git:github.com/nonlog/agent-extras#packages/pi-spinner-verbs
 ```
 
-The extension registers automatically and on the next session start will randomly pick a theme for you.
+The extension uses Claude Code's default verb list. A configured theme or custom file is appended to that list, with duplicate verbs removed.
 
 ## Patches
 
 - **Event-driven verb rotation.** Upstream replaced the working line every 3 seconds via `setInterval`, so the verb changed on a clock regardless of what the agent was doing. This fork picks a new verb on `turn_start` and holds it for the whole turn, which is how Claude Code behaves: a long single thought keeps one word, and the word changes when the work moves on. There is no timer at all.
-- **`/verbs (default)` and `/verb-status`** track the active verb list directly instead of a timer handle, so "no spinner active" is still reported correctly after the timer was removed.
+- **Claude Code defaults plus your theme.** The base list contains 185 verbs identified in the locally installed Claude Code 2.1.325 Windows binary, from `Accomplishing` through `Zigzagging`. This is a bundled snapshot, not a live dependency on Claude Code. The selected theme or custom list is appended and deduplicated. With `"spinnerVerbs": "breaking-bad"`, the pool contains **258 verbs**: 185 defaults + 73 Breaking Bad entries. Each turn picks randomly from the combined pool; append order does not make it play sequentially.
+- **`/verbs (default)` and `/verb-status`** use the active combined list. `(default)` selects the Claude Code base without a theme; `/verb-status` reports the combined source and deduplicated count.
 
 ### Switching Themes with `/verbs`
 
@@ -42,7 +43,7 @@ Change your verb list at any time during a session:
 /verbs (default)
 ```
 
-Run `/verbs` with no argument to get an interactive picker. Use `random` to pick a new random theme, or `(default)` to restore the default spinner.
+Run `/verbs` with no argument to get an interactive picker. Use `random` to choose a theme to append, or `(default)` to use only the Claude Code defaults.
 
 ### Checking Status with `/verb-status`
 
@@ -56,7 +57,7 @@ Check the current session spinner settings at any time:
 
 Set your preferred theme once and forget about it. Pi checks both project-local (`.pi/settings.json`) and global (`~/.pi/agent/settings.json`) settings on session start.
 
-**Randomly pick a theme each session (default):**
+**Randomly pick an additional theme each session (optional):**
 
 ```json
 {
@@ -64,11 +65,11 @@ Set your preferred theme once and forget about it. Pi checks both project-local 
 }
 ```
 
-**Use a specific built-in theme by name:**
+**Use Claude Code defaults plus Breaking Bad:**
 
 ```json
 {
-  "spinnerVerbs": "game-of-thrones"
+  "spinnerVerbs": "breaking-bad"
 }
 ```
 
@@ -104,6 +105,8 @@ Your custom file can be a plain JSON array:
 
 | Theme | Sample                                                        |
 |-------|---------------------------------------------------------------|
+| `claude-code` | Accomplishing..., Cogitating..., Flibbertigibbeting... |
+| `breaking-bad` | Knocking..., Becoming Heisenberg..., Treading lightly... |
 | `game-of-thrones` | Taking the black..., Winter is coming..., By your leave...    |
 | `lord-of-the-rings` | One does not simply..., You shall not pass... So it begins... |
 | `action-movie` | Yippee-ki-yay..., I'll be back..., I know kung fu...          |
@@ -120,6 +123,16 @@ Your custom file can be a plain JSON array:
 Use `"spinnerVerbs": "random"` to have a theme randomly selected from the list above at each session start.
 
 ---
+
+## Validation
+
+From the repository root, with Pi installed:
+
+```shell
+node --test packages/pi-spinner-verbs/tests/verbs.test.mjs
+```
+
+Checks cover the base list, Breaking Bad composition, per-turn selection, deduplication, invalid custom-file fallback, and cooperation with pi-polish.
 
 ## License
 

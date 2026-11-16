@@ -27,7 +27,8 @@ export default function (pi: ExtensionAPI) {
   const validChoices = new Set(availableWithDefault);
 
   function parseVerbsData(data: unknown): string[] | undefined {
-    return Array.isArray(data) && data.length > 0 ? data : undefined;
+    return Array.isArray(data) && data.length > 0 &&
+      data.every((verb) => typeof verb === 'string' && verb.trim().length > 0) ? data : undefined;
   }
 
   // A missing or corrupt bundled verb file must not abort session_start: report it and let
@@ -42,6 +43,8 @@ export default function (pi: ExtensionAPI) {
       return undefined;
     }
   }
+
+  const claudeVerbs = loadVerbs('claude-code') ?? [];
 
   function randomVerbs(): { verbs: string[] | undefined; setName: string } {
     const availableVerbs = available as string[];
@@ -71,8 +74,9 @@ export default function (pi: ExtensionAPI) {
   }
 
   function activate(verbs: string[], verbSetName: string | undefined, ctx: ExtensionContext) {
-    activeVerbs = verbs;
-    activeVerbSetName = verbSetName;
+    activeVerbs = [...new Set([...claudeVerbs, ...verbs])];
+    activeVerbSetName = verbSetName === 'claude-code'
+      ? 'claude-code' : `claude-code + ${verbSetName ?? 'custom'}`;
     nextVerb(ctx);
   }
 
@@ -91,8 +95,8 @@ export default function (pi: ExtensionAPI) {
   };
 
   const EMPTY_RESULT: LoadVerbsResult = {
-    verbs: undefined,
-    verbSetName: undefined,
+    verbs: claudeVerbs.length ? claudeVerbs : undefined,
+    verbSetName: claudeVerbs.length ? 'claude-code' : undefined,
   };
 
   type SpinnerConfig = {
@@ -170,7 +174,7 @@ export default function (pi: ExtensionAPI) {
 
     if (config.spinnerVerbs === RANDOM) {
       const result = randomVerbs();
-      return { verbs: result.verbs, verbSetName: result.verbs ? result.setName : undefined };
+      return result.verbs ? { verbs: result.verbs, verbSetName: result.setName } : EMPTY_RESULT;
     }
 
     if (
@@ -180,7 +184,7 @@ export default function (pi: ExtensionAPI) {
       available.includes(config.spinnerVerbs)
     ) {
       const verbs = loadVerbs(config.spinnerVerbs);
-      return { verbs, verbSetName: verbs ? config.spinnerVerbs : undefined };
+      return verbs ? { verbs, verbSetName: config.spinnerVerbs } : EMPTY_RESULT;
     }
 
     if (config.spinnerVerbsFile && config.settingsPath) {
@@ -255,29 +259,13 @@ export default function (pi: ExtensionAPI) {
       }
       const choice = arg || (await ctx.ui.select('Spinner verbs:', availableWithDefault));
       if (!choice) return;
-      if (choice === DEFAULT) {
-        activeVerbs = undefined;
-        activeVerbSetName = undefined;
-        ctx.ui.setWorkingMessage();
-        ctx.ui.notify('Restored default spinner', 'info');
-      } else if (choice === RANDOM) {
-        const result = loadVerbsFromSource(choice, undefined, undefined);
-        if (!result.verbs) {
-          ctx.ui.notify('Failed to load random spinner verbs', 'error');
-          return;
-        }
-        activate(result.verbs, result.verbSetName, ctx);
-        ctx.ui.notify('Spinner: random', 'info');
-      } else {
-        // For direct verb selection, we don't have settings context so we'll use undefined
-        const result = loadVerbsFromSource(choice, undefined, undefined);
-        if (!result.verbs) {
-          ctx.ui.notify(`Failed to load spinner: ${choice}`, 'error');
-          return;
-        }
-        activate(result.verbs, result.verbSetName, ctx);
-        ctx.ui.notify(`Spinner: ${choice}`, 'info');
+      const result = loadVerbsFromSource(choice, undefined, undefined);
+      if (!result.verbs) {
+        ctx.ui.notify(`Failed to load spinner: ${choice}`, 'error');
+        return;
       }
+      activate(result.verbs, result.verbSetName, ctx);
+      ctx.ui.notify(`Spinner: ${activeVerbSetName}`, 'info');
     },
   });
 

@@ -469,6 +469,7 @@ export default function (pi: ExtensionAPI) {
 		for (const invalidate of rowInvalidate.values()) invalidate();
 		// History rows were drawn before they were grouped; a full redraw clears their stale lines
 		if (ctx.hasUI) {
+			ctx.ui.setToolsExpanded(false);
 			ctx.ui.setWidget("pi-polish-redraw", (tui) => {
 				setTimeout(() => {
 					ctx.ui.setWidget("pi-polish-redraw", undefined);
@@ -552,7 +553,8 @@ export default function (pi: ExtensionAPI) {
 			const text = truncateToWidth(label(toolName, args, cwd), 400);
 			return new Text(dot(theme, context) + theme.fg("toolTitle", text), 0, 0);
 		},
-		renderResult(result, { expanded }, theme) {
+		renderResult(result, { expanded }, theme, context) {
+			if (context.isError) return errorText(theme, resultText(result as Result), expanded);
 			if (!expanded) return empty();
 			return new Text(expandedBody(theme, resultText(result as Result)), 0, 0);
 		},
@@ -598,8 +600,30 @@ export default function (pi: ExtensionAPI) {
 			return [`Wrote ${lineCount(lines.length)}`, lines.map((line, i) => `+${String(i + 1).padStart(width)} ${line}`)];
 		}),
 	};
-	// Only the drawing changes: pi's own tools keep running, with their own schema and on/off state
-	pi.registerToolRenderer((toolName, next) => renderers[toolName] ?? next());
+	// MCP and extension tools without their own UI need compact rendering too.
+	const genericTool = (toolName: string): ToolRenderers => ({
+		renderShell: "self",
+		renderCall(args: any, theme, context) {
+			const name = toolName.split("__").pop() ?? toolName;
+			const detail = String(args?.command ?? args?.path ?? args?.query ?? args?.code ?? args?.url ?? "").split(/\r?\n/)[0];
+			const title = `${name}${detail ? ` ${detail}` : ""}`;
+			return new Text(dot(theme, context) + theme.fg("toolTitle", truncateToWidth(title, 160)), 0, 0);
+		},
+		renderResult(result, { expanded, isPartial }, theme, context) {
+			const text = resultText(result as Result);
+			if (context.isError) return errorText(theme, text, expanded);
+			if (expanded) return new Text(expandedBody(theme, text), 0, 0);
+			if (isPartial) return empty();
+			const count = text ? text.trimEnd().split("\n").length : 0;
+			return new Text(theme.fg("dim", `  └ ${count ? lineCount(count) : "Done"} (${keyHint("app.tools.expand", "expand")})`), 0, 0);
+		},
+	});
+	// Keep specialized UIs (questions, subagents, etc.); only replace Pi's generic fallback.
+	pi.registerToolRenderer((toolName, next) => {
+		if (renderers[toolName]) return renderers[toolName];
+		const existing = next();
+		return existing?.renderCall || existing?.renderResult ? existing : genericTool(toolName);
+	});
 
 	// pi only lists a tool's guidelines while the tool is on
 	pi.on("before_agent_start", async (event) => {

@@ -15,6 +15,10 @@ pi install git:github.com/nonlog/agent-extras
 - A dot on each tool row shows its status: orange while running, green when done, red if it failed.
 - An orange status line shows what Pi is doing, how long it has been at it and how many tokens it has written.
 - `❯` marks your messages and `●` marks Pi's replies.
+- The startup header draws Claude Code's crab mascot instead of Pi's block logo.
+- Tools without a custom UI, including MCP tools such as `ctx_execute`, use a compact call line and result summary instead of Pi's large background boxes. `ctrl+o` reveals the result preview. Specialized interactive renderers are preserved.
+- Errors stay visible even when tools are collapsed.
+- Tools start collapsed on session startup and reload.
 - A short instruction to the model to change files with Pi's edit and write tools instead of shell commands like `sed -i`, so you see the changes as diffs.
 
 ## Local patches
@@ -53,9 +57,43 @@ Upstream dropped the `thinking` content parts from the message before rendering,
 
 Note this interacts with `pi-open-tui`'s hidden-thinking label width budget: Pi renders that label as `Text(label, outputPad, 0)`, and `Text` pads **both** sides, so the usable width is `width - 2*outputPad`. With `outputPad = 2` the budget must reserve 4 columns, not 2. See the corresponding change in pi-open-tui.
 
+## Compact thinking
+
+Merge this into Pi's `settings.json` (global `~/.pi/agent/settings.json`, or project `.pi/settings.json`):
+
+```json
+{
+  "hideThinkingBlock": true
+}
+```
+
+This uses Pi's own thinking visibility setting, so the thinking toggle (`alt+t` by default, or your configured binding) still works correctly. Reasoning remains in the session; pi-polish never removes it. The plugin does not silently rewrite your settings.
+
+## Crab logo header
+
+```text
+ █▜███▜▌  Pi v1.5.2
+▀██████▛▘ esc interrupt · ctrl+c/ctrl+d clear/exit · / commands · ! bash
+ ▘▘   ▘▘
+```
+
+Pi's built-in header is a component inside Pi, so the logo cannot be swapped on its own: the whole header is replaced (`ctx.ui.setHeader`). Two things exist only in the built-in header and are lost with it: `ctrl+o` expanding it to the full key list, and the click easter egg that animates the logo.
+
+`PI_POLISH_LOGO=pi` keeps Pi's own header unchanged.
+
+## Validation
+
+With Pi installed and the repository's dependencies available, run:
+
+```bash
+node --test packages/pi-polish/tests/rendering.test.mjs
+```
+
+The tests exercise the installed Pi SDK: MCP fallback rendering, custom-renderer preservation, error visibility, thinking expansion, message markers, collapsed startup, package entrypoints, and narrow-terminal logo rendering.
+
 ## Compatibility
 
-pi-polish only changes how Pi's built-in tools are drawn; the tools themselves run exactly as before. The chat styling (the markers and the status line) reaches into Pi's internal UI, so a new Pi release can break that part of the look until pi-polish is updated. Your sessions are never affected. Tested with Pi 1.4.
+pi-polish changes how tools and chat are drawn, not how tools execute. Generic MCP/extension tools get compact rendering; tools with their own renderers keep their custom UI. The chat styling (the markers and the status line) reaches into Pi's internal UI, so a new Pi release can break that part of the look until pi-polish is updated. Your sessions are never affected. Rendering regression tests run against Pi 1.5.2.
 
 ## License
 
