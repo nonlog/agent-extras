@@ -46,8 +46,9 @@ type CursorState = {
 const DARK_THEME_ACCENT = "#8abeb7";
 let state: CursorState;
 let boundGeneration = 0;
+let awaitingSessionStart = true;
 
-function getOrCreateSharedState(proto: object): CursorState {
+function getOrCreateSharedState(proto: { render: RenderMethod }): CursorState {
 	const holder = proto as Record<PropertyKey, unknown>;
 	const existing = holder[SHARED_STATE] as CursorState | undefined;
 	if (existing) {
@@ -72,7 +73,7 @@ function getOrCreateSharedState(proto: object): CursorState {
 	return created;
 }
 
-function attachSharedState(proto: object, shared: CursorState): CursorState {
+function attachSharedState(proto: { render: RenderMethod }, shared: CursorState): CursorState {
 	const holder = proto as Record<PropertyKey, unknown>;
 	const existing = holder[SHARED_STATE] as CursorState | undefined;
 	if (existing) return existing;
@@ -202,6 +203,11 @@ function patchEditorRender(): void {
 			state.lastTui = tui;
 			installTerminalWriteOrdering(tui);
 			const hasMarker = lines.some((line: string) => line.includes("\x1b_pi:c\x07"));
+			if (awaitingSessionStart && !state.active && this.focused && hasMarker) {
+				state.active = true;
+				installExitCleanup();
+				applyCursorAppearance();
+			}
 			if (state.active && this.focused && hasMarker) {
 				// Keep the hardware cursor visible during agent activity as well.
 				// Windows Terminal does not send an observable composition-start event
@@ -228,6 +234,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_start", (_event, ctx) => {
 		if (ctx.mode !== "tui") return;
+		awaitingSessionStart = false;
 		boundGeneration = ++state.generation;
 		state.active = true;
 		state.lastTui = null;
@@ -257,6 +264,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", (event) => {
+		awaitingSessionStart = false;
 		if (!state.active || boundGeneration !== state.generation) return;
 		flushPendingTerminalWrites();
 		setHardwareCursorVisible(false);

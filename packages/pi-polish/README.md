@@ -19,6 +19,8 @@ pi install git:github.com/nonlog/agent-extras
 - Tools without a custom UI, including MCP tools such as `ctx_execute`, use a compact call line and result summary instead of Pi's large background boxes. `ctrl+o` reveals the result preview. Specialized interactive renderers are preserved.
 - Errors stay visible even when tools are collapsed.
 - Tools start collapsed on session startup and reload.
+- `codemode` also starts compact even though it has its own renderer; expanding restores its code and inner-tool details.
+- Pasted image paths appear as `[image1]`, `[image2]`, etc., in the editor and user transcript; submission keeps the original paths.
 - A short instruction to the model to change files with Pi's edit and write tools instead of shell commands like `sed -i`, so you see the changes as diffs.
 
 ## Local patches
@@ -59,7 +61,23 @@ Note this interacts with `pi-open-tui`'s hidden-thinking label width budget: Pi 
 
 ## Compact thinking
 
-Merge this into Pi's `settings.json` (global `~/.pi/agent/settings.json`, or project `.pi/settings.json`):
+Use `/polish-thinking` to choose how collapsed thinking is displayed, or select a mode directly. Previews show actual reasoning text rather than repeating a static `Thinking...` label; the separate working line still uses the active spinner verb.
+
+| Command | Collapsed thinking display |
+|---|---|
+| `/polish-thinking single` | Latest non-empty line, clipped to the terminal width (default) |
+| `/polish-thinking multi` | Latest 3 non-empty lines, each clipped to the terminal width |
+| `/polish-thinking off` | Hide the entire thinking area, including when Pi's native thinking view is expanded |
+
+Changes redraw existing messages immediately and are saved in `pi-polish.json` in Pi's agent directory (normally `~/.pi/agent/pi-polish.json`):
+
+```json
+{
+  "thinking": "single"
+}
+```
+
+In `single` and `multi` modes, Pi's native thinking state still controls preview versus full text: click the preview or use the thinking toggle (`alt+t` by default) to expand. Keep this in Pi's `settings.json` to start with previews:
 
 ```json
 {
@@ -67,7 +85,19 @@ Merge this into Pi's `settings.json` (global `~/.pi/agent/settings.json`, or pro
 }
 ```
 
-This uses Pi's own thinking visibility setting, so the thinking toggle (`alt+t` by default, or your configured binding) still works correctly. Reasoning remains in the session; pi-polish never removes it. The plugin does not silently rewrite your settings.
+In `off` mode, choose `single` or `multi` again to restore thinking display. Reasoning remains in the session in all modes; pi-polish never removes it. The plugin does not silently rewrite Pi's settings. Malformed plugin configuration is not overwritten when saving a selection.
+
+## Image paste markers
+
+Clipboard image paths are displayed as `[image1]`, `[image2]`, etc. The editor uses Pi's existing paste registry, so normal submission, expanded text, external editing, history drafts, deletion and undo preserve the attachment path. Existing supported image files (PNG, JPEG, GIF, WebP and BMP) are compacted; missing files remain ordinary editor text. URLs are not converted.
+
+The user-transcript transformation is display-only. Original paths remain in session/model input and Pi still performs the normal attachment loading. This does not create another image copy or change tool-result images.
+
+## Startup ordering
+
+Pi draws its native UI before running `session_start` handlers, and awaits those handlers in extension order. To avoid seeing its default banner while slower extensions initialize, put `git:github.com/nonlog/agent-extras` first in your `packages` list and set `"quietStartup": true`. The custom crab header still appears when pi-polish's handler runs. The bundled pi-bar-cursor now applies its bar shape on the first focused editor frame, without waiting for `session_start`; it writes no terminal escapes merely by being loaded in RPC/print mode.
+
+This changes the early appearance, not the time other extensions need to initialize. If you use `PI_POLISH_LOGO=pi`, restore `"quietStartup": "header"` to show the native banner.
 
 ## Crab logo header
 
@@ -89,11 +119,11 @@ With Pi installed and the repository's dependencies available, run:
 node --test packages/pi-polish/tests/rendering.test.mjs
 ```
 
-The tests exercise the installed Pi SDK: MCP fallback rendering, custom-renderer preservation, error visibility, thinking expansion, message markers, collapsed startup, package entrypoints, and narrow-terminal logo rendering.
+The tests exercise the installed Pi SDK: MCP and codemode rendering, custom-renderer preservation, error visibility, thinking modes and persistence, streaming and native expansion, image marker submission/deletion/undo/history, message markers, collapsed startup, and narrow-terminal logo rendering.
 
 ## Compatibility
 
-pi-polish changes how tools and chat are drawn, not how tools execute. Generic MCP/extension tools get compact rendering; tools with their own renderers keep their custom UI. The chat styling (the markers and the status line) reaches into Pi's internal UI, so a new Pi release can break that part of the look until pi-polish is updated. Your sessions are never affected. Rendering regression tests run against Pi 1.5.2.
+pi-polish changes how tools and chat are drawn, not how tools execute. Generic MCP/extension tools get compact rendering; codemode also gets a compact default view, while other tools with their own renderers keep their custom UI. The chat styling (the markers and the status line) reaches into Pi's internal UI, so a new Pi release can break that part of the look until pi-polish is updated. Your sessions are never affected. Rendering regression tests run against Pi 1.5.2.
 
 ## License
 

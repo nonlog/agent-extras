@@ -1,6 +1,6 @@
 {
   "name": "pi-bar-cursor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pi extension: replace the filled reverse-video block caret with a terminal bar cursor.",
   "type": "module",
   "license": "MIT",

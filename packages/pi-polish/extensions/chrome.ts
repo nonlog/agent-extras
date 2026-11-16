@@ -1,5 +1,7 @@
 import { AssistantMessageComponent, CustomEditor, type ExtensionAPI, UserMessageComponent } from "@earendil-works/pi-coding-agent";
 import { Markdown } from "@earendil-works/pi-tui";
+import registerThinking from "./thinking.js";
+import { compactImagePaths, decorateImagePastes } from "./images.js";
 
 const PROMPT = "❯";
 const REPLY = "●";
@@ -29,7 +31,17 @@ function patchOnce(proto: any, method: string, wrap: (original: (...args: any[])
 }
 
 export default function (pi: ExtensionAPI) {
+	pi.registerMarkdownTransformer(compactImagePaths, { messageTypes: ["user"] });
 	try {
+		// The native editor is visible before session_start can install our editor factory.
+		patchOnce(Object.getPrototypeOf(CustomEditor.prototype), "render", (original) =>
+			function (this: any, width: number) {
+				if (this instanceof CustomEditor) this.setPaddingX(2);
+				const lines: string[] = original.call(this, width);
+				if (this instanceof CustomEditor && lines.length > 1) lines[1] = markFirstLine(lines[1], PROMPT);
+				return lines;
+			},
+		);
 		// pi-open-tui's thinking peek rewrites pi's hidden-thinking label row, so that row must survive:
 		// stripping the thinking parts removes it and leaves the peek with nothing to show
 		patchOnce(AssistantMessageComponent.prototype, "updateContent", (original) =>
@@ -73,6 +85,8 @@ export default function (pi: ExtensionAPI) {
 	} catch (err) {
 		console.error(`[pi-polish] could not patch message components: ${(err as Error).message}`);
 	}
+
+	registerThinking(pi);
 
 	// Orange working line: what pi is doing now, elapsed time and output tokens for this run
 	let started = 0;
@@ -162,6 +176,7 @@ export default function (pi: ExtensionAPI) {
 		const previous = ctx.ui.getEditorComponent();
 		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
 			const editor: any = previous?.(tui, theme, keybindings) ?? new CustomEditor(tui, theme, keybindings);
+			decorateImagePastes(editor);
 			const render = editor.render.bind(editor);
 			editor.render = (width: number) => {
 				// Set on every render because pi may apply its own editor padding setting after creation

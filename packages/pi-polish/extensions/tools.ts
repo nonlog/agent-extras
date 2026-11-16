@@ -601,15 +601,18 @@ export default function (pi: ExtensionAPI) {
 		}),
 	};
 	// MCP and extension tools without their own UI need compact rendering too.
-	const genericTool = (toolName: string): ToolRenderers => ({
+	const genericTool = (toolName: string, expandedRenderer?: ToolRenderers): ToolRenderers => ({
 		renderShell: "self",
 		renderCall(args: any, theme, context) {
+			if (context.expanded && expandedRenderer?.renderCall) return expandedRenderer.renderCall(args, theme, context);
 			const name = toolName.split("__").pop() ?? toolName;
 			const detail = String(args?.command ?? args?.path ?? args?.query ?? args?.code ?? args?.url ?? "").split(/\r?\n/)[0];
 			const title = `${name}${detail ? ` ${detail}` : ""}`;
 			return new Text(dot(theme, context) + theme.fg("toolTitle", truncateToWidth(title, 160)), 0, 0);
 		},
-		renderResult(result, { expanded, isPartial }, theme, context) {
+		renderResult(result, options, theme, context) {
+			const { expanded, isPartial } = options;
+			if (expanded && expandedRenderer?.renderResult) return expandedRenderer.renderResult(result, options, theme, context);
 			const text = resultText(result as Result);
 			if (context.isError) return errorText(theme, text, expanded);
 			if (expanded) return new Text(expandedBody(theme, text), 0, 0);
@@ -622,6 +625,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerToolRenderer((toolName, next) => {
 		if (renderers[toolName]) return renderers[toolName];
 		const existing = next();
+		if (toolName === "codemode") return genericTool(toolName, existing);
 		return existing?.renderCall || existing?.renderResult ? existing : genericTool(toolName);
 	});
 

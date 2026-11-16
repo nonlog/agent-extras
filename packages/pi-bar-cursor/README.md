@@ -43,6 +43,10 @@ hardware cursor after the focused editor has rendered its marker and keeps it
 visible during agent activity. The marker and editor focus remain available for
 IME positioning and continued input.
 
+## Startup
+
+The first focused editor render now activates the bar shape and hardware cursor before `session_start`. A slow earlier extension can no longer keep the caret in its default block shape until event dispatch reaches this package. Activation requires a real focused TUI editor with Pi's cursor marker: simply loading the extension in RPC/print mode writes no cursor escapes. Shutdown prevents later teardown renders from reactivating the caret.
+
 ## Usage
 
 No commands are required. While idle, the editor caret is a blinking,

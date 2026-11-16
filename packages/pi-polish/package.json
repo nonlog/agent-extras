@@ -1,6 +1,6 @@
 {
   "name": "pi-polish",
-  "version": "0.1.2-patched.2",
+  "version": "0.1.2-patched.3",
   "license": "MIT",
   "author": "Thomas van Dongen (upstream); patched fork maintained by nonlog",
   "type": "module",
