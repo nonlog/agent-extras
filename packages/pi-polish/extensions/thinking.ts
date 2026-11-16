@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { AssistantMessageComponent, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { MouseRegion, replaceControlCharacters, Spacer, stripTerminalSequences, truncateToWidth, type Component } from "@earendil-works/pi-tui";
+import { Markdown, MouseRegion, replaceControlCharacters, Spacer, stripTerminalSequences, truncateToWidth, visibleWidth, type Component } from "@earendil-works/pi-tui";
 
 const MODES = ["single", "multi", "off"] as const;
 type Mode = (typeof MODES)[number];
@@ -92,13 +92,27 @@ export default function registerThinking(pi: ExtensionAPI, configPath = join(get
 			const lines = stripTerminalSequences(run.text).split(/\r?\n/)
 				.map((line) => replaceControlCharacters(line).trim()).filter(Boolean);
 			const rows = mode === "single" ? lines.slice(-1) : lines.slice(-3);
+			const previews = rows.map((row) => ({
+				width: visibleWidth(row),
+				markdown: new Markdown(row, 0, 0, this.markdownTheme, {
+					color: (text) => ui?.theme.fg("thinkingText", text) ?? text,
+					italic: true,
+				}),
+			}));
+			const invalidate = child.invalidate.bind(child);
+			child.invalidate = () => {
+				invalidate();
+				for (const preview of previews) preview.markdown.invalidate();
+			};
 			const padding = this.outputPad;
 			child.render = (width: number) => {
 				const available = Math.max(0, width - 2 * padding);
 				if (!available) return [];
-				return rows.map((row) => {
-					const clipped = truncateToWidth(row, available);
-					return " ".repeat(padding) + (ui?.theme.fg("thinkingText", clipped) ?? clipped) + " ".repeat(padding);
+				return previews.map((preview) => {
+					// Render formatting before clipping, so truncation never exposes Markdown delimiters.
+					const row = preview.markdown.render(Math.max(available, preview.width))
+						.filter((line) => stripTerminalSequences(line).trim()).join(" ");
+					return " ".repeat(padding) + truncateToWidth(row, available) + " ".repeat(padding);
 				});
 			};
 		}

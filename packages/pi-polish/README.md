@@ -61,7 +61,7 @@ Note this interacts with `pi-open-tui`'s hidden-thinking label width budget: Pi 
 
 ## Compact thinking
 
-Use `/polish-thinking` to choose how collapsed thinking is displayed, or select a mode directly. Previews show actual reasoning text rather than repeating a static `Thinking...` label; the separate working line still uses the active spinner verb.
+Use `/polish-thinking` to choose how collapsed thinking is displayed, or select a mode directly. Previews show actual reasoning text rather than repeating a static `Thinking...` label; the separate working line still uses the active spinner verb. Markdown is rendered before clipping: `**bold**`, emphasis and inline code use Pi's normal formatting rather than exposing source delimiters. Thinking uses the theme's `thinkingText` color and italic style; its stored text remains unchanged.
 
 | Command | Collapsed thinking display |
 |---|---|

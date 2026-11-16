@@ -187,8 +187,8 @@ async function thinkingFixture(mode = "single") {
 		dir, configPath, notices, ctx,
 		get command() { return commands.get("polish-thinking"); },
 		reload: async () => { register(pi, configPath); await handlers.get("session_start")({}, ctx); },
-		create(content) {
-			const view = new sdk.AssistantMessageComponent({ ...message, content }, true, undefined, label);
+		create(content, markdownTheme) {
+			const view = new sdk.AssistantMessageComponent({ ...message, content }, true, markdownTheme, label);
 			views.push(view);
 			return view;
 		},
@@ -214,6 +214,55 @@ test("single thinking preview shows only the latest line and updates while strea
 		assert.ok(view.render(12).every((line) => visibleWidth(line) <= 12));
 		view.setHideThinkingBlock(false);
 		assert.match(plain(view.render(80)), /Old line/);
+	} finally { f.cleanup(); }
+});
+
+test("thinking previews render Markdown emphasis instead of exposing source delimiters", async () => {
+	for (const mode of ["single", "multi"]) {
+		const f = await thinkingFixture(mode);
+		try {
+			const source = "**Reading smaller sections**";
+			const content = [{ type: "thinking", thinking: source }];
+			const view = f.create(content, { ...sdk.getMarkdownTheme(), bold: (text) => `\x1b[1m${text}\x1b[22m` });
+			const lines = view.render(80);
+			assert.match(plain(lines), /Reading smaller sections/);
+			assert.ok(!plain(lines).includes("**"));
+			assert.match(lines.join("\n"), /\x1b\[(?:1|22;1)m/, "Markdown bold styling survives");
+			assert.equal(content[0].thinking, source);
+			view.updateContent({ ...message, content: [{ type: "thinking", thinking: "Check `renderer` and *formatting*" }] }, true);
+			assert.match(plain(view.render(80)), /Check renderer and formatting/);
+			assert.ok(view.render(12).every((line) => visibleWidth(line) <= 12));
+		} finally { f.cleanup(); }
+	}
+});
+
+test("thinking preview Markdown follows theme color changes after invalidation", async () => {
+	const f = await thinkingFixture();
+	try {
+		f.ctx.ui.theme = { ...theme, fg: (_token, text) => `\x1b[31m${text}\x1b[39m` };
+		const view = f.create([{ type: "thinking", thinking: "Theme-sensitive preview" }]);
+		assert.ok(view.render(80).join("\n").includes("\x1b[31m"));
+		f.ctx.ui.theme = { ...theme, fg: (_token, text) => `\x1b[34m${text}\x1b[39m` };
+		view.invalidate();
+		assert.ok(view.render(80).join("\n").includes("\x1b[34m"));
+	} finally { f.cleanup(); }
+});
+
+test("multi-line thinking preview retains the line budget after Markdown rendering", async () => {
+	const f = await thinkingFixture("multi");
+	try {
+		const view = f.create([{ type: "thinking", thinking: "Discard this\n**First**\n`Second`\n*Third*" }]);
+		const lines = view.render(30).filter((line) => plain([line]).trim());
+		assert.equal(lines.length, 3);
+		assert.deepEqual(lines.map((line) => plain([line]).trim()), ["First", "Second", "Third"]);
+	} finally { f.cleanup(); }
+});
+
+test("thinking preview preserves intentionally escaped Markdown punctuation", async () => {
+	const f = await thinkingFixture();
+	try {
+		const view = f.create([{ type: "thinking", thinking: String.raw`Literal \*\*stars\*\*` }]);
+		assert.match(plain(view.render(80)), /Literal \*\*stars\*\*/);
 	} finally { f.cleanup(); }
 });
 
