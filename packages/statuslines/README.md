@@ -1,6 +1,6 @@
 # statuslines
 
-The Claude Code and Droid CLI copies of the two-line status bar that [`pi-polish`](../pi-polish/extensions/footer.ts) draws in Pi. All three share one layout, colors and icon set:
+The Claude Code and Droid CLI copies of the status bar that [`pi-polish`](../pi-polish/extensions/footer.ts) draws in Pi. They share the same wide-screen layout, colors and icon set; Pi's footer also wraps on narrow screens:
 
 ```
  D:\Workspace\General |  DeepSeek V4.1 Flash ✦ max |  [██████▒▒▒▒▒▒▒▒▒▒] 148k/400k

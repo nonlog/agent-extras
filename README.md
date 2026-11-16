@@ -12,7 +12,7 @@ The root `package.json` declares every Pi extension under `pi.extensions` (inclu
 
 | Package | What it does | Origin |
 |---|---|---|
-| [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line, custom two-line footer with model brand icons | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
+| [`packages/pi-polish`](./packages/pi-polish) | Claude Code-style output: tool rows fold into one line, edits render as colored diffs, `❯`/`●` markers, orange status line, responsive footer with model brand icons | Patched fork of [`pringled/pi-extensions`](https://github.com/pringled/pi-extensions/tree/main/packages/pi-polish) (MIT, Thomas van Dongen) |
 | [`packages/pi-spinner-verbs`](./packages/pi-spinner-verbs) | Claude Code's 185 default spinner verbs plus themed packs (including 73 Breaking Bad entries), with `/verbs` and `/verb-status`; verbs rotate per model turn | Patched fork of [`@robhowley/pi-spinner-verbs`](https://github.com/robhowley/pi-userland/tree/main/packages/pi-spinner-verbs) (MIT, Rob Howley) |
 | [`packages/pi-bar-cursor`](./packages/pi-bar-cursor) | Replaces Pi's reverse-video block caret with an accent-colored blinking hardware bar cursor | [`nonlog/pi-bar-cursor`](https://github.com/nonlog/pi-bar-cursor) (MIT, nonlog) |
 | [`packages/pi-model-prompts`](./packages/pi-model-prompts) | Selects a local private instruction section by exact provider/model ID while retaining Pi's runtime instructions | nonlog |
@@ -36,7 +36,7 @@ pi-polish also gives generic MCP/extension tools compact result summaries, prese
 
 ### Custom footer
 
-`extensions/footer.ts` replaces `FooterComponent.render` with a two-line layout matching Droid CLI statusline:
+`extensions/footer.ts` replaces `FooterComponent.render` with a normally two-line layout matching Droid CLI statusline:
 
 ```
  D:\Workspace\General |  DeepSeek V4.1 Flash  high |  [████████████▒▒▒▒] 300k/400k
@@ -56,7 +56,8 @@ pi-polish also gives generic MCP/extension tools compact result summaries, prese
 - `export default` installs the latest replacement on every load instead of guarding on a one-shot marker: `/reload` re-imports this module, so a one-shot guard would bail out and leave the previous closure installed, which is why edits used to need a full restart.
 - Separators ` | ` in low-contrast neutral gray `#5f5f5f`.
 - All text styles prefixed with `\x1b[22;1;` (cancels dim, enables bold highlight).
-- Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped, so the footer is always exactly two lines.
+- On narrow terminals, the directory, model and context bar each get their own row when they cannot fit together. The title and Git details share a row when possible and otherwise use separate rows. Long individual fields are truncated to the available width; the bar shortens on very narrow screens.
+- Extension statuses are no longer drawn: `ctx.ui.setStatus()` output is dropped.
 
 Model brand logos are drawn from [**Herdr Agent Icons Max**](./fonts/HerdrAgentIconsMax-Regular.ttf) (`U+E1A0`–`U+E1BB`). Install `fonts/HerdrAgentIconsMax-Regular.ttf` and list `Herdr Agent Icons Max` as a terminal fallback — that font carries those codepoints and nothing else, so without it every icon renders as tofu:
 

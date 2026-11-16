@@ -159,6 +159,64 @@ test("crab header handles narrow terminals and is in both package entrypoints", 
 	}
 });
 
+await load("footer");
+function makeFooter({ cwd = "D:\\Workspace\\General", title = "测试会话", branch = "main" } = {}) {
+	const footer = Object.create(sdk.FooterComponent.prototype);
+	footer.session = {
+		state: { model: { id: "deepseek-v4.1-flash", reasoning: true, contextWindow: 400000 }, thinkingLevel: "high" },
+		sessionManager: { getCwd: () => cwd, getSessionName: () => title },
+	};
+	footer.footerData = { getGitBranch: () => branch };
+	footer.getSessionStats = () => ({ contextUsage: { tokens: 300000, contextWindow: 400000, percent: 75 } });
+	return footer;
+}
+
+test("footer wraps cwd, model and progress only when their full row no longer fits", () => {
+	const footer = makeFooter();
+	const wide = footer.render(200);
+	assert.equal(wide.length, 2);
+	const boundary = visibleWidth(wide[0]);
+	assert.equal(footer.render(boundary)[0], wide[0]);
+	const wrapped = footer.render(boundary - 1);
+	assert.match(plain([wrapped[0]]), /D:\\Workspace\\General/);
+	assert.match(plain([wrapped[1]]), /DeepSeek V4\.1 Flash.*high/);
+	assert.match(plain([wrapped[2]]), /\[█{12}▒{4}\] 300k\/400k/);
+	assert.match(plain(wrapped.slice(3)), /测试会话.*main/);
+});
+
+test("footer fits narrow terminals and retains the progress bar and git details", () => {
+	const footer = makeFooter({ title: "很长的手机会话标题：检查状态栏布局", branch: "feature/long-branch" });
+	const phone = footer.render(30);
+	assert.match(plain([phone[2]]), /\[█{12}▒{4}\] 300k\/400k/);
+	assert.match(plain(phone.slice(3)), /feature\/long-branch/);
+	assert.match(plain([footer.render(18)[2]]), /\[[█▒]{4}\] 300k\/400k/);
+	assert.match(plain([footer.render(17)[2]]), /300k\/400k/);
+	for (let width = 1; width <= 200; width++) {
+		for (const line of footer.render(width)) {
+			assert.ok(visibleWidth(line) <= width, `width ${width}: ${JSON.stringify(plain([line]))}`);
+		}
+	}
+});
+
+test("footer reload reinstalls the renderer and keeps the responsive layout", async () => {
+	const previous = sdk.FooterComponent.prototype.render;
+	await load("footer");
+	assert.notEqual(sdk.FooterComponent.prototype.render, previous);
+	const lines = makeFooter().render(40);
+	assert.match(plain([lines[1]]), /DeepSeek V4\.1 Flash/);
+	assert.match(plain([lines[2]]), /300k\/400k/);
+});
+
+test("footer shortens long paths correctly and keeps the empty second row", () => {
+	for (const cwd of ["D:\\workspace\\a\\very\\long\\project-name", "/home/user/a/very/long/project-name"]) {
+		const footer = makeFooter({ cwd, title: "", branch: null });
+		const lines = footer.render(25);
+		assert.match(plain([lines[0]]), /project-name/);
+		assert.equal(lines.at(-1), "");
+		for (const line of lines) assert.ok(visibleWidth(line) <= 25);
+	}
+});
+
 await tools.emit("session_shutdown");
 
 async function thinkingFixture(mode = "single") {
