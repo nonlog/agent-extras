@@ -363,9 +363,12 @@ test("image paste markers stay compact while submission and expanded text retain
 		f.editor.insertTextAtCursor(f.first);
 		f.editor.insertTextAtCursor(" ");
 		f.editor.insertTextAtCursor(f.second);
-		assert.equal(f.editor.getText(), "[image1] [image2]");
+		assert.equal(f.editor.getText(), "[Image #1] [Image #2]");
 		assert.equal(f.editor.getExpandedText(), `${f.first} ${f.second}`);
-		assert.ok(!f.editor.render(40).join("\n").includes(f.first));
+		const rendered = f.editor.render(40).join("\n");
+		assert.ok(!rendered.includes(f.first));
+		assert.match(rendered, /\x1b\[38;2;217;119;87m\x1b\[1m\[Image #1\]/);
+		assert.ok(!f.editor.getExpandedText().includes("\x1b"));
 		let submitted;
 		f.editor.onSubmit = (text) => { submitted = text; };
 		f.editor.handleInput("\r");
@@ -382,10 +385,10 @@ test("image deletion is atomic and undo restores the original attachment", async
 		assert.equal(f.editor.getText(), "");
 		assert.equal(f.editor.getExpandedText(), "");
 		f.editor.undo();
-		assert.equal(f.editor.getText(), "[image1]");
+		assert.equal(f.editor.getText(), "[Image #1]");
 		assert.equal(f.editor.getExpandedText(), f.first);
 		f.editor.setText(`${f.first} compare with "${f.second}"`);
-		assert.equal(f.editor.getText(), "[image1] compare with [image2]");
+		assert.equal(f.editor.getText(), "[Image #1] compare with [Image #2]");
 		assert.equal(f.editor.getExpandedText(), `${f.first} compare with "${f.second}"`);
 	} finally { f.cleanup(); }
 });
@@ -394,8 +397,8 @@ test("bracketed image pastes and normal large text pastes keep separate registri
 	const f = await imageFixture();
 	try {
 		f.editor.handleInput(`\x1b[200~${f.first}\x1b[201~`);
-		assert.equal(f.editor.getText(), "[image1]");
-		const text = `${"normal text ".repeat(110)}literal [image1]`;
+		assert.equal(f.editor.getText(), "[Image #1]");
+		const text = `${"normal text ".repeat(110)}literal [Image #1]`;
 		f.editor.handleInput(`\x1b[200~${text}\x1b[201~`);
 		assert.ok(f.editor.getText().includes("[paste #1"));
 		assert.equal(f.editor.getExpandedText(), f.first + text);
@@ -411,7 +414,7 @@ test("image markers survive history browsing and leave missing files as ordinary
 		f.editor.handleInput("\x1b[A");
 		f.editor.handleInput("\x1b[A"); // Native Up first moves to column zero, then browses history.
 		assert.equal(f.editor.getExpandedText(), f.first);
-		assert.match(f.editor.getText(), /^\[image\d+\]$/);
+		assert.match(f.editor.getText(), /^\[Image #\d+\]$/);
 		f.editor.handleInput("\x1b[B");
 		assert.equal(f.editor.getExpandedText(), f.second);
 		f.editor.setText(`${f.first}.missing.png`);
@@ -419,10 +422,29 @@ test("image markers survive history browsing and leave missing files as ordinary
 	} finally { f.cleanup(); }
 });
 
+test("image labels are accent-colored in the user transcript without coloring normal text", () => {
+	const lines = new sdk.UserMessageComponent("See [Image #1] and [Image #2]").render(100);
+	const output = lines.join("\n");
+	assert.match(output, /\x1b\[38;2;217;119;87m\x1b\[1m\[Image #1\]/);
+	assert.match(output, /\x1b\[38;2;217;119;87m\x1b\[1m\[Image #2\]/);
+	assert.match(plain(lines), /See \[Image #1\] and \[Image #2\]/);
+});
+
+test("image accent restores surrounding text color and does not stack after reload", async () => {
+	const { styleImageMarkers } = await jiti.import(fileURLToPath(new URL("../extensions/images.ts", import.meta.url)));
+	const surrounding = "\x1b[48;2;10;20;30m\x1b[38;2;50;100;200m";
+	const styled = styleImageMarkers(`${surrounding}Before [Image #1] after`);
+	assert.ok(styled.includes(`\x1b[22;39m${surrounding} after`));
+	assert.equal(plain([styled]), "Before [Image #1] after");
+	await load("chrome");
+	const output = new sdk.UserMessageComponent("See [Image #1]").render(100).join("\n");
+	assert.equal(output.match(/\x1b\[38;2;217;119;87m/g)?.length, 1);
+});
+
 test("user transcript image markers are display-only and do not change URLs or assistant text", () => {
 	const input = 'C:\\Temp\\first.png compare with "C:\\Temp\\second image.png"';
 	assert.deepEqual(chrome.markdownTransformer.options.messageTypes, ["user"]);
-	assert.equal(chrome.markdownTransformer.transform(input), "[image1] compare with [image2]");
+	assert.equal(chrome.markdownTransformer.transform(input), "[Image #1] compare with [Image #2]");
 	assert.equal(chrome.markdownTransformer.transform("https://example.com/photo.png"), "https://example.com/photo.png");
 	assert.equal(input, 'C:\\Temp\\first.png compare with "C:\\Temp\\second image.png"');
 });

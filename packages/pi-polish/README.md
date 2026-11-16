@@ -20,7 +20,7 @@ pi install git:github.com/nonlog/agent-extras
 - Errors stay visible even when tools are collapsed.
 - Tools start collapsed on session startup and reload.
 - `codemode` also starts compact even though it has its own renderer; expanding restores its code and inner-tool details.
-- Pasted image paths appear as `[image1]`, `[image2]`, etc., in the editor and user transcript; submission keeps the original paths.
+- Pasted image paths appear as `[Image #1]`, `[Image #2]`, etc., in the editor and user transcript; submission keeps the original paths.
 - A short instruction to the model to change files with Pi's edit and write tools instead of shell commands like `sed -i`, so you see the changes as diffs.
 
 ## Local patches
@@ -89,7 +89,7 @@ In `off` mode, choose `single` or `multi` again to restore thinking display. Rea
 
 ## Image paste markers
 
-Clipboard image paths are displayed as `[image1]`, `[image2]`, etc. The editor uses Pi's existing paste registry, so normal submission, expanded text, external editing, history drafts, deletion and undo preserve the attachment path. Existing supported image files (PNG, JPEG, GIF, WebP and BMP) are compacted; missing files remain ordinary editor text. URLs are not converted.
+Clipboard image paths are displayed as `[Image #1]`, `[Image #2]`, etc. Markers use bold coral (`#d97757`, matching the spinner/logo) in both the editor and user transcript, restoring the surrounding text style afterward. This explicit accent is a user-requested customization rather than a claim that Claude Code uses that color. The editor uses Pi's existing paste registry, so normal submission, expanded text, external editing, history drafts, deletion and undo preserve the attachment path. Existing supported image files (PNG, JPEG, GIF, WebP and BMP) are compacted; missing files remain ordinary editor text. URLs are not converted.
 
 The user-transcript transformation is display-only. Original paths remain in session/model input and Pi still performs the normal attachment loading. This does not create another image copy or change tool-result images.
 

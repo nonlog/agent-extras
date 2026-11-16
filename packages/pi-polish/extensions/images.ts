@@ -3,7 +3,7 @@ import { isAbsolute } from "node:path";
 
 const EXTENSION = /\.(png|jpe?g|gif|webp|bmp)$/i;
 const IMAGE_PATH = /(?<![\w:/\\])(?:"(?:[A-Za-z]:[\\/]|\/|\\\\)[^"\r\n]+\.(?:png|jpe?g|gif|webp|bmp)"|'(?:[A-Za-z]:[\\/]|\/|\\\\)[^'\r\n]+\.(?:png|jpe?g|gif|webp|bmp)'|(?:[A-Za-z]:[\\/]|\/|\\\\)[^\s"'<>]+?\.(?:png|jpe?g|gif|webp|bmp)(?=$|[\s),;!?，。]))/gi;
-const MARKER = /\[(image\d+)\]/g;
+const MARKER = /\[(Image #\d+)\]/g;
 const PATCHED = Symbol.for("pi-polish.image-pastes");
 
 type Match = { raw: string; index: number };
@@ -31,7 +31,14 @@ function replacePaths(text: string, matches: Match[], replace: (raw: string) => 
 // Transcript-only transformation: the stored message and model input retain their original paths.
 export function compactImagePaths(text: string): string {
 	let index = 0;
-	return replacePaths(text, imagePaths(text, false), () => `[image${++index}]`);
+	return replacePaths(text, imagePaths(text, false), () => `[Image #${++index}]`);
+}
+
+export function styleImageMarkers(line: string): string {
+	return line.replace(MARKER, (label, _key, offset: number) => {
+		const restore = line.slice(0, offset).match(/\x1b\[[0-9;]*m/g)?.join("") ?? "";
+		return `\x1b[38;2;217;119;87m\x1b[1m${label}\x1b[22;39m${restore}`;
+	});
 }
 
 export function decorateImagePastes(editor: any): void {
@@ -39,11 +46,16 @@ export function decorateImagePastes(editor: any): void {
 	editor[PATCHED] = true;
 	const compact = (text: string, matches = imagePaths(text, true)) => replacePaths(text, matches, (raw) => {
 		let index = 1;
-		while (editor.pastes.has(`image${index}`)) index++;
-		const key = `image${index}`;
+		while (editor.pastes.has(`Image #${index}`)) index++;
+		const key = `Image #${index}`;
 		editor.pastes.set(key, raw);
 		return `[${key}]`;
 	});
+
+	const render = editor.render;
+	editor.render = function (width: number) {
+		return render.call(this, width).map(styleImageMarkers);
+	};
 
 	// Reuse Pi's paste registry so submit, external editing, undo and draft restoration share one source of truth.
 	for (const method of ["insertTextAtCursor", "handlePaste"]) {
@@ -87,7 +99,7 @@ export function decorateImagePastes(editor: any): void {
 		const result = handleInput.call(this, data);
 		if (this.historyIndex === -1) {
 			for (const key of this.pastes.keys()) {
-				if (typeof key === "string" && /^image\d+$/.test(key) && !this.getText().includes(`[${key}]`)) this.pastes.delete(key);
+				if (typeof key === "string" && /^Image #\d+$/.test(key) && !this.getText().includes(`[${key}]`)) this.pastes.delete(key);
 			}
 		}
 		return result;

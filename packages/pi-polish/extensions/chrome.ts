@@ -1,7 +1,7 @@
 import { AssistantMessageComponent, CustomEditor, type ExtensionAPI, UserMessageComponent } from "@earendil-works/pi-coding-agent";
 import { Markdown } from "@earendil-works/pi-tui";
 import registerThinking from "./thinking.js";
-import { compactImagePaths, decorateImagePastes } from "./images.js";
+import { compactImagePaths, decorateImagePastes, styleImageMarkers } from "./images.js";
 
 const PROMPT = "❯";
 const REPLY = "●";
@@ -82,6 +82,14 @@ export default function (pi: ExtensionAPI) {
 				return body;
 			},
 		);
+		const userProto: any = UserMessageComponent.prototype;
+		const imageRender = Symbol.for("pi-polish.images.user-render");
+		userProto[imageRender] ??= userProto.render;
+		const coloredRender: any = function (this: any, width: number) {
+			return userProto[imageRender].call(this, width).map(styleImageMarkers);
+		};
+		coloredRender[patched] = true;
+		userProto.render = coloredRender;
 	} catch (err) {
 		console.error(`[pi-polish] could not patch message components: ${(err as Error).message}`);
 	}

@@ -32,7 +32,7 @@ Four changes on top of upstream `0.1.2`, fixing conflicts with [`pi-open-tui`](h
 
 ### Compact Claude Code-style UI
 
-pi-polish also gives generic MCP/extension tools compact result summaries, preserves visible errors and custom interactive UIs, and uses a crab startup logo. Tools start collapsed; `ctrl+o` expands them, including codemode's detailed view. Pasted image paths display as `[image1]` markers without changing attachment submission. `/polish-thinking single|multi|off` selects a single-line preview, the latest 3 lines, or hidden thinking; the choice is saved. Keep `"hideThinkingBlock": true` in Pi settings to start with previews. See [pi-polish](./packages/pi-polish/README.md#compact-thinking) for configuration and regression tests.
+pi-polish also gives generic MCP/extension tools compact result summaries, preserves visible errors and custom interactive UIs, and uses a crab startup logo. Tools start collapsed; `ctrl+o` expands them, including codemode's detailed view. Pasted image paths display as `[Image #1]` markers without changing attachment submission. `/polish-thinking single|multi|off` selects a single-line preview, the latest 3 lines, or hidden thinking; the choice is saved. Keep `"hideThinkingBlock": true` in Pi settings to start with previews. See [pi-polish](./packages/pi-polish/README.md#compact-thinking) for configuration and regression tests.
 
 ### Custom footer
 
