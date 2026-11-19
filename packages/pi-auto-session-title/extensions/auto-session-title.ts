@@ -323,9 +323,9 @@ export default function autoSessionTitle(pi: ExtensionAPI): void {
       .finally(() => pendingSessions.delete(sessionId));
   });
 
-  pi.registerCommand("retitle", {
+  const retitleCommand = {
     description: "Regenerate the current session title",
-    handler: async (_args, ctx) => {
+    handler: async (_args: string, ctx: ExtensionContext) => {
       const sessionId = ctx.sessionManager.getSessionId();
       activeSessionId = sessionId;
       if (!sessionId) {
@@ -343,5 +343,8 @@ export default function autoSessionTitle(pi: ExtensionAPI): void {
       if (title) ctx.ui.notify(`Session title: ${title}`, "info");
       else ctx.ui.notify("Could not generate a session title.", "warning");
     },
-  });
+  };
+
+  pi.registerCommand("retitle", retitleCommand);
+  pi.registerCommand("autotitle", retitleCommand);
 }

@@ -17,7 +17,7 @@ This project intentionally avoids `completeSimple()`. It was created after a cus
 - If an explicitly configured different title model times out, switches to the session model; if the session model also fails, uses a sanitized local title.
 - Non-timeout primary failures still honor `retries` before trying any available fallback.
 - Removes URLs, absolute paths, and common token-like strings from generated/fallback titles.
-- Provides `/retitle` to explicitly regenerate the current title.
+- Provides `/retitle` (and `/autotitle` alias) to explicitly regenerate the current title.
 
 ## Configuration
 

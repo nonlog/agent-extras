@@ -220,6 +220,12 @@ process.env.PI_AUTO_TITLE_DEBUG = "0";
   assert.ok(retitle);
   await retitle.handler("", h.ctx);
   assert.equal(h.name, "重新生成会话标题");
+
+  h.name = "旧名称";
+  const autotitle = h.commands.get("autotitle");
+  assert.ok(autotitle);
+  await autotitle.handler("", h.ctx);
+  assert.equal(h.name, "重新生成会话标题");
 }
 
 process.env.PI_AUTO_TITLE_TIMEOUT_MS = "100";
